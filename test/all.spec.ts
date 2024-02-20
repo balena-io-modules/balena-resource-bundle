@@ -10,7 +10,7 @@ function stringStream(str: string): stream.Readable {
 }
 
 describe('basic usage', () => {
-	it('create bundle', async (done) => {
+	it('create bundle', async () => {
 		const myBundle = bundle.create({
 			type: 'io.balena.foo@1',
 			manifest: ['hello.txt', 'world.txt'],
@@ -28,12 +28,10 @@ describe('basic usage', () => {
 
 		const manifest = await readableBundle.manifest();
 
-		expect(manifest).to.equal(['hello.txt', 'world.txt']);
-
 		for await (const entry of readableBundle.resources()) {
 			entry.resume();
 		}
 
-		done();
+		expect(manifest).to.eql(['hello.txt', 'world.txt']);
 	});
 });
