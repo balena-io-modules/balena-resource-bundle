@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2021",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": false,
+    "outDir": "./dist",
+    "noImplicitAny": true,
+    "noUnusedParameters": true,
+    "noUnusedLocals": true,
+    "preserveConstEnums": true,
+    "declaration": true,
+    "removeComments": true,
+    "sourceMap": true,
+    "strictNullChecks": true
+  },
+  "include": [
+    "lib/**/*.ts",
+    "typings/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
