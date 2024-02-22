@@ -87,7 +87,7 @@ export function create(options: CreateOptions): WritableBundle {
 
 class ReadableBundle {
 	extract: tar.Extract;
-	_manifest?: Promise<any>; // to keep here the actual manifest
+	contents: any | undefined;
 	_iterator: AsyncIterator<tar.Entry, any, undefined>;
 
 	constructor(input: stream.Readable) {
@@ -100,8 +100,9 @@ class ReadableBundle {
 	}
 
 	async manifest(): Promise<any> {
-		// TODO: We have to store manifest in this
-		// so that we do not pull from stream each time
+		if (this.contents != null) {
+			return this.contents.manifest;
+		}
 
 		const result = await this._iterator.next();
 
@@ -111,6 +112,8 @@ class ReadableBundle {
 		// let json = await stringStream(entry)
 		// let contents = JSON.parse(entry)
 		const contents = await new Response(entry).json();
+
+		this.contents = contents;
 
 		return contents.manifest;
 	}
