@@ -33,7 +33,7 @@ class ErroringStream extends stream.Readable {
 }
 
 describe('basic usage', () => {
-	it('create bundle', async () => {
+	it('create bundle and then open it and read it', async () => {
 		const myBundle = bundle.create({
 			type: 'io.balena.foo@1',
 			manifest: ['hello.txt', 'world.txt'],
@@ -58,7 +58,7 @@ describe('basic usage', () => {
 		expect(manifest).to.eql(['hello.txt', 'world.txt']);
 	});
 
-	it('addResource with erroring stream', async () => {
+	it('add resource with stream throwing an error', async () => {
 		const myBundle = bundle.create({
 			type: 'io.balena.foo@1',
 			manifest: ['hello.txt', 'world.txt'],
