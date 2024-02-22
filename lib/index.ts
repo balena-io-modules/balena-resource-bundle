@@ -53,7 +53,11 @@ class WritableBundle {
 				}
 			},
 		);
+
+		resourceStream.on('error', (err) => streamFailed(err));
+
 		resourceStream.pipe(entryStream);
+
 		return promise;
 	}
 
