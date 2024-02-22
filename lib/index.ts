@@ -9,7 +9,7 @@ type CreateOptions = {
 class WritableBundle {
 	pack: tar.Pack;
 	resourcePromises: Array<Promise<void>>;
-	error: Error | undefined;
+	packError: Error | undefined;
 
 	constructor(type: string, manifest: any) {
 		const pack = tar.pack();
@@ -26,7 +26,7 @@ class WritableBundle {
 		pack.entry({ name: 'contents.json' }, json);
 
 		pack.on('error', (err) => {
-			this.error = err;
+			this.packError = err;
 		});
 
 		this.pack = pack;
@@ -71,8 +71,8 @@ class WritableBundle {
 	}
 
 	async finalize() {
-		if (this.error != null) {
-			throw this.error;
+		if (this.packError != null) {
+			throw this.packError;
 		}
 
 		this.pack.finalize();
