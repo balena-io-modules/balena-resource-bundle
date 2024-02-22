@@ -9,6 +9,7 @@ type CreateOptions = {
 class WritableBundle {
 	pack: tar.Pack;
 	resourcePromises: Array<Promise<void>>;
+	error: Error | undefined;
 
 	constructor(type: string, manifest: any) {
 		const pack = tar.pack();
@@ -23,6 +24,10 @@ class WritableBundle {
 		const json = JSON.stringify(contents, null, 2) + '\n';
 
 		pack.entry({ name: 'contents.json' }, json);
+
+		pack.on('error', (err) => {
+			this.error = err;
+		});
 
 		this.pack = pack;
 		this.resourcePromises = [];
@@ -55,13 +60,21 @@ class WritableBundle {
 		);
 
 		resourceStream.on('error', (err) => streamFailed(err));
+		entryStream.on('error', (err) => streamFailed(err));
 
+		// TODO: Investigate `pipeline` as replacement, what NodeJS version
+		// and what the exact differences are - especially error handling and
+		// how it deals with stream handling
 		resourceStream.pipe(entryStream);
 
 		return promise;
 	}
 
 	async finalize() {
+		if (this.error != null) {
+			throw this.error;
+		}
+
 		this.pack.finalize();
 
 		await Promise.all(this.resourcePromises);
@@ -87,7 +100,7 @@ class ReadableBundle {
 	}
 
 	async manifest(): Promise<any> {
-		// We have to store manifest in this
+		// TODO: We have to store manifest in this
 		// so that we do not pull from stream each time
 
 		const result = await this._iterator.next();
@@ -108,6 +121,7 @@ class ReadableBundle {
 			if (result.done === true) {
 				break;
 			}
+			// TODO: add check whether this is a resource
 			yield result.value;
 		}
 	}

@@ -73,4 +73,26 @@ describe('basic usage', () => {
 			expect(error.message).to.equal('ErroringStream is throwing an error');
 		}
 	});
+
+	it('add resource with wrong size', async () => {
+		const myBundle = bundle.create({
+			type: 'io.balena.foo@1',
+			manifest: ['hello.txt'],
+		});
+
+		try {
+			const hello = stringStream('hello');
+			await myBundle.addResource('hello.txt', 100, hello);
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal('Size mismatch');
+		}
+
+		try {
+			await myBundle.finalize();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal('Size mismatch');
+		}
+	});
 });
