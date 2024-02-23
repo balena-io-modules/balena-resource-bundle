@@ -43,41 +43,37 @@ class WritableBundle {
 		size: number,
 		resourceStream: stream.Readable,
 	): Promise<void> {
-		let streamFinished: any;
-		let streamFailed: any;
 		const promise = new Promise<void>((resolve, reject) => {
-			streamFinished = resolve;
-			streamFailed = reject;
-		});
-		this.resourcePromises.push(promise);
+			const path = 'resources/' + name;
+			const entryStream = this.pack.entry(
+				{ name: path, size: size },
+				function (err) {
+					if (err == null) {
+						resolve();
+					} else {
+						reject(err);
+					}
+				},
+			);
 
-		const path = 'resources/' + name;
-		const entryStream = this.pack.entry(
-			{ name: path, size: size },
-			function (err) {
-				if (err == null) {
-					streamFinished();
-				} else {
-					streamFailed(err);
+			stream.pipeline(resourceStream, entryStream, (err) => {
+				if (err) {
+					reject(err);
 				}
-			},
-		);
-
-		stream.pipeline(resourceStream, entryStream, (err) => {
-			if (err) {
-				streamFailed(err);
-			}
+			});
 		});
+
+		this.resourcePromises.push(promise);
 
 		return promise;
 	}
 
 	async finalize() {
+		this.pack.finalize();
+
 		if (this.packError != null) {
 			throw this.packError;
 		}
-
-		this.pack.finalize();
 
 		await Promise.all(this.resourcePromises);
 	}
@@ -95,7 +91,12 @@ class ReadableBundle {
 	constructor(input: stream.Readable) {
 		const extract = tar.extract();
 
-		input.pipe(extract);
+		stream.pipeline(input, extract, (err) => {
+			// TODO: Figure out more details about this callback
+			if (err) {
+				throw err;
+			}
+		});
 
 		this.extract = extract;
 		this.iterator = extract[Symbol.asyncIterator]();
