@@ -47,7 +47,7 @@ describe('basic usage', () => {
 
 		await myBundle.finalize();
 
-		const readableBundle = bundle.open(myBundle.pack, 'io.balena.foo@1');
+		const readableBundle = bundle.open(myBundle.pack);
 
 		const manifest = await readableBundle.manifest();
 

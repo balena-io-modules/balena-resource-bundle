@@ -7,7 +7,8 @@ type CreateOptions = {
 };
 
 function toPrettyJSON(obj: any): string {
-	// Convert contents to pretty JSON with appended new line at the end
+	// Convert contents to pretty JSON with appended
+	// new line at the end
 	return JSON.stringify(obj, null, 2) + '\n';
 }
 
@@ -37,13 +38,11 @@ class WritableBundle {
 		this.resourcePromises = [];
 	}
 
-	// TODO: tar-stream's entry method handles `string | Buffer`
 	async addResource(
 		name: string,
 		size: number,
 		resourceStream: stream.Readable,
 	): Promise<void> {
-		const path = 'resources/' + name;
 		let streamFinished: any;
 		let streamFailed: any;
 		const promise = new Promise<void>((resolve, reject) => {
@@ -52,6 +51,7 @@ class WritableBundle {
 		});
 		this.resourcePromises.push(promise);
 
+		const path = 'resources/' + name;
 		const entryStream = this.pack.entry(
 			{ name: path, size: size },
 			function (err) {
@@ -92,7 +92,7 @@ export function create(options: CreateOptions): WritableBundle {
 class ReadableBundle {
 	extract: tar.Extract;
 	contents: any | undefined;
-	_iterator: AsyncIterator<tar.Entry, any, undefined>;
+	iterator: AsyncIterator<tar.Entry, any, undefined>;
 
 	constructor(input: stream.Readable) {
 		const extract = tar.extract();
@@ -100,7 +100,7 @@ class ReadableBundle {
 		input.pipe(extract);
 
 		this.extract = extract;
-		this._iterator = extract[Symbol.asyncIterator]();
+		this.iterator = extract[Symbol.asyncIterator]();
 	}
 
 	async manifest(): Promise<any> {
@@ -108,13 +108,10 @@ class ReadableBundle {
 			return this.contents.manifest;
 		}
 
-		const result = await this._iterator.next();
+		const result = await this.iterator.next();
 
 		const entry = result.value;
 
-		// TODO: make sure using `Response` here is alright
-		// let json = await stringStream(entry)
-		// let contents = JSON.parse(entry)
 		const contents = await new Response(entry).json();
 
 		this.contents = contents;
@@ -124,7 +121,7 @@ class ReadableBundle {
 
 	async *resources() {
 		while (true) {
-			const result = await this._iterator.next();
+			const result = await this.iterator.next();
 			if (result.done === true) {
 				break;
 			}
