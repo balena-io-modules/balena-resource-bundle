@@ -1,5 +1,5 @@
 import * as tar from 'tar-stream';
-import type * as stream from 'node:stream';
+import * as stream from 'node:stream';
 
 type CreateOptions = {
 	type: string;
@@ -63,13 +63,11 @@ class WritableBundle {
 			},
 		);
 
-		resourceStream.on('error', (err) => streamFailed(err));
-		entryStream.on('error', (err) => streamFailed(err));
-
-		// TODO: Investigate `pipeline` as replacement, what NodeJS version
-		// and what the exact differences are - especially error handling and
-		// how it deals with stream handling
-		resourceStream.pipe(entryStream);
+		stream.pipeline(resourceStream, entryStream, (err) => {
+			if (err) {
+				streamFailed(err);
+			}
+		});
 
 		return promise;
 	}
