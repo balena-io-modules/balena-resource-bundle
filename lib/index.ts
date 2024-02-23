@@ -91,6 +91,7 @@ class ReadableBundle {
 	constructor(input: stream.Readable) {
 		const extract = tar.extract();
 
+		// TODO: Possibly move this `pipeline` call to `manifest`
 		stream.pipeline(input, extract, (err) => {
 			// TODO: Figure out more details about this callback
 			if (err) {
@@ -103,6 +104,7 @@ class ReadableBundle {
 	}
 
 	async manifest(): Promise<any> {
+		// TODO: Convert `manifest` to a getter
 		if (this.contents != null) {
 			return this.contents.manifest;
 		}
@@ -119,6 +121,9 @@ class ReadableBundle {
 	}
 
 	async *resources() {
+		// TODO: make sure we have read contents.json first
+		// We can also possibly read it here if we allow an API
+		// that does not require calling manifest at all.
 		while (true) {
 			const result = await this.iterator.next();
 			if (result.done) {
