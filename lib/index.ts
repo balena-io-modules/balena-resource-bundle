@@ -120,7 +120,7 @@ class ReadableBundle {
 	async *resources() {
 		while (true) {
 			const result = await this.iterator.next();
-			if (result.done === true) {
+			if (result.done) {
 				break;
 			}
 			// TODO: add check whether this is a resource
