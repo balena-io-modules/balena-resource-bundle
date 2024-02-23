@@ -32,6 +32,32 @@ class ErroringStream extends stream.Readable {
 	}
 }
 
+/*
+
+{
+  "version": 1,
+  "type": "io.balena.release@4",
+  "manifest": {
+    // the portion of the API state endpoint that
+    // describes a single app.
+  },
+  "resources": {
+    "registry2.balena-cloud.com/v2/cafebabe": {
+      "type": "docker-image",
+      "path": "image0.tar.gz",
+      "digest": "sha256:deadbeef"
+    },
+    "registry2.balena-cloud.com/v2/caf3babe": {
+      "type": "docker-image",
+      "path": "image1.tar.gz",
+      "digest": "sha256:deadbeef"
+    }
+  }
+}
+
+*/
+
+
 describe('basic usage', () => {
 	it('create bundle and then open it and read it', async () => {
 		const myBundle = bundle.create({
