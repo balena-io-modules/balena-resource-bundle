@@ -133,7 +133,7 @@ class ReadableBundle {
 		}
 	}
 }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function open(input: stream.Readable, _type: string): ReadableBundle {
+
+export function open(input: stream.Readable): ReadableBundle {
 	return new ReadableBundle(input);
 }
