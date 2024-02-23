@@ -6,6 +6,11 @@ type CreateOptions = {
 	manifest: any;
 };
 
+function toPrettyJSON(obj: any): string {
+	// Convert contents to pretty JSON with appended new line at the end
+	return JSON.stringify(obj, null, 2) + '\n';
+}
+
 class WritableBundle {
 	pack: tar.Pack;
 	resourcePromises: Array<Promise<void>>;
@@ -20,8 +25,7 @@ class WritableBundle {
 			manifest: manifest,
 		};
 
-		// TODO: Check for a better way to serialize a pretty json
-		const json = JSON.stringify(contents, null, 2) + '\n';
+		const json = toPrettyJSON(contents);
 
 		pack.entry({ name: 'contents.json' }, json);
 
