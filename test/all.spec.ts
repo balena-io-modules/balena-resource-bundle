@@ -57,7 +57,6 @@ class ErroringStream extends stream.Readable {
 
 */
 
-
 describe('basic usage', () => {
 	it('create bundle and then open it and read it', async () => {
 		const myBundle = bundle.create({
@@ -75,7 +74,7 @@ describe('basic usage', () => {
 
 		const readableBundle = bundle.open(myBundle.pack);
 
-		const manifest = await readableBundle.manifest();
+		const manifest = await readableBundle.manifest;
 
 		for await (const entry of readableBundle.resources()) {
 			entry.resume();

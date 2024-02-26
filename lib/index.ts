@@ -105,22 +105,23 @@ class ReadableBundle {
 		this.iterator = extract[Symbol.asyncIterator]();
 	}
 
-	async manifest(): Promise<any> {
-		// TODO: Convert `manifest` to a getter
-		if (this.contents != null) {
-			return this.contents.manifest;
-		}
+	get manifest(): Promise<any> {
+		return (async () => {
+			if (this.contents != null) {
+				return this.contents.manifest;
+			}
 
-		const result = await this.iterator.next();
+			const result = await this.iterator.next();
 
-		// TODO: add all validation needed on top of the contents.json
-		const entry = result.value;
+			// TODO: add all validation needed on top of the contents.json
+			const entry = result.value;
 
-		const contents = await new Response(entry).json();
+			const contents = await new Response(entry).json();
 
-		this.contents = contents;
+			this.contents = contents;
 
-		return contents.manifest;
+			return contents.manifest;
+		})();
 	}
 
 	async *resources() {
