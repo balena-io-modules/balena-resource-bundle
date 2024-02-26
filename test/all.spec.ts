@@ -120,4 +120,24 @@ describe('basic usage', () => {
 			expect(error.message).to.equal('Size mismatch');
 		}
 	});
+
+	it('read resources without accessing manifest', async () => {
+		const writable = bundle.create({
+			type: 'io.balena.foo@1',
+			manifest: ['hello.txt'],
+		});
+
+		const hello = stringStream('hello');
+		await writable.addResource('hello.txt', 5, hello);
+
+		await writable.finalize();
+
+		const readable = bundle.open(writable.pack);
+
+		try {
+			await readable.resources().next();
+		} catch (error) {
+			expect(error.message).to.equal('Manifest is not yet accessed');
+		}
+	});
 });

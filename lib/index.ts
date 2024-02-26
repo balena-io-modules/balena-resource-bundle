@@ -133,8 +133,16 @@ class ReadableBundle {
 			if (result.done) {
 				break;
 			}
-			// TODO: add check whether this is a resource
-			yield result.value;
+
+			const value = result.value;
+
+			const path = value.header.name;
+			if (path === 'contents.json') {
+				throw new Error('Manifest is not yet accessed');
+			}
+
+			// TODO: skip or error out on other items that are not resources
+			yield value;
 		}
 	}
 }
