@@ -124,10 +124,11 @@ class ReadableBundle {
 		})();
 	}
 
+	// TODO: should we rename this to `readResources`?
 	async *resources() {
-		// TODO: make sure we have read contents.json first
-		// We can also possibly read it here if we allow an API
-		// that does not require calling manifest at all.
+		// TODO: we can also possibly read contents.json here
+		// if we allow an API that does not require calling
+		// manifest at all.
 		while (true) {
 			const result = await this.iterator.next();
 			if (result.done) {
