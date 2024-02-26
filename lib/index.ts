@@ -87,10 +87,11 @@ export function create(options: CreateOptions): WritableBundle {
 
 class ReadableBundle {
 	extract: tar.Extract;
+	type: string;
 	contents: any | undefined;
 	iterator: AsyncIterator<tar.Entry, any, undefined>;
 
-	constructor(input: stream.Readable) {
+	constructor(input: stream.Readable, type: string) {
 		const extract = tar.extract();
 
 		// TODO: Possibly move this `pipeline` call to `manifest`
@@ -101,6 +102,7 @@ class ReadableBundle {
 			}
 		});
 
+		this.type = type;
 		this.extract = extract;
 		this.iterator = extract[Symbol.asyncIterator]();
 	}
@@ -117,6 +119,12 @@ class ReadableBundle {
 			const entry = result.value;
 
 			const contents = await new Response(entry).json();
+
+			if (contents.type !== this.type) {
+				throw new Error(
+					`Expected type (${this.type}) does not match received type (${contents.type})`,
+				);
+			}
 
 			this.contents = contents;
 
@@ -147,6 +155,6 @@ class ReadableBundle {
 	}
 }
 
-export function open(input: stream.Readable): ReadableBundle {
-	return new ReadableBundle(input);
+export function open(input: stream.Readable, type: string): ReadableBundle {
+	return new ReadableBundle(input, type);
 }

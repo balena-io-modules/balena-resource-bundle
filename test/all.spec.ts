@@ -72,7 +72,7 @@ describe('basic usage', () => {
 
 		await myBundle.finalize();
 
-		const readableBundle = bundle.open(myBundle.pack);
+		const readableBundle = bundle.open(myBundle.pack, 'io.balena.foo@1');
 
 		const manifest = await readableBundle.manifest;
 
@@ -132,12 +132,34 @@ describe('basic usage', () => {
 
 		await writable.finalize();
 
-		const readable = bundle.open(writable.pack);
+		const readable = bundle.open(writable.pack, 'io.balena.foo@1');
 
 		try {
 			await readable.readResources().next();
 		} catch (error) {
 			expect(error.message).to.equal('Manifest is not yet accessed');
+		}
+	});
+
+	it('read manifest with mismatching bundle type', async () => {
+		const writable = bundle.create({
+			type: 'io.balena.foo@1',
+			manifest: ['hello.txt'],
+		});
+
+		const hello = stringStream('hello');
+		await writable.addResource('hello.txt', 5, hello);
+
+		await writable.finalize();
+
+		const readable = bundle.open(writable.pack, 'io.balena.bar@1');
+
+		try {
+			await readable.manifest;
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Expected type (io.balena.bar@1) does not match received type (io.balena.foo@1)',
+			);
 		}
 	});
 });
