@@ -124,8 +124,7 @@ class ReadableBundle {
 		})();
 	}
 
-	// TODO: should we rename this to `readResources`?
-	async *resources() {
+	async *readResources() {
 		// TODO: we can also possibly read contents.json here
 		// if we allow an API that does not require calling
 		// manifest at all.

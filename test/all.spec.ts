@@ -76,7 +76,7 @@ describe('basic usage', () => {
 
 		const manifest = await readableBundle.manifest;
 
-		for await (const entry of readableBundle.resources()) {
+		for await (const entry of readableBundle.readResources()) {
 			entry.resume();
 		}
 
@@ -135,7 +135,7 @@ describe('basic usage', () => {
 		const readable = bundle.open(writable.pack);
 
 		try {
-			await readable.resources().next();
+			await readable.readResources().next();
 		} catch (error) {
 			expect(error.message).to.equal('Manifest is not yet accessed');
 		}
