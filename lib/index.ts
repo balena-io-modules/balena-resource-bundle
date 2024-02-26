@@ -1,6 +1,8 @@
 import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
+// TODO: Switch to nvm and NodeJS 20
+
 type CreateOptions = {
 	type: string;
 	manifest: any;
@@ -111,6 +113,7 @@ class ReadableBundle {
 
 		const result = await this.iterator.next();
 
+		// TODO: add all validation needed on top of the contents.json
 		const entry = result.value;
 
 		const contents = await new Response(entry).json();
