@@ -108,47 +108,45 @@ class ReadableBundle {
 		this.iterator = extract[Symbol.asyncIterator]();
 	}
 
-	get manifest(): Promise<any> {
-		return (async () => {
-			if (this.contents != null) {
-				return this.contents.manifest;
-			}
+	async manifest(): Promise<any> {
+		if (this.contents != null) {
+			return this.contents.manifest;
+		}
 
-			const result = await this.iterator.next();
+		const result = await this.iterator.next();
 
-			const entry = result.value;
+		const entry = result.value;
 
-			// TODO: extract converting stream to json into separate function
-			// TODO: see what this does more specifically with the debugger
-			const contents = await new Response(entry).json();
+		// TODO: extract converting stream to json into separate function
+		// TODO: see what this does more specifically with the debugger
+		const contents = await new Response(entry).json();
 
-			// TODO: add all validation needed on top of the contents.json
-			// TODO: extract validation in separate function
-			if (!('version' in contents)) {
-				throw new Error('Missing "version" in contents.json');
-			}
+		// TODO: add all validation needed on top of the contents.json
+		// TODO: extract validation in separate function
+		if (!('version' in contents)) {
+			throw new Error('Missing "version" in contents.json');
+		}
 
-			if (!('type' in contents)) {
-				throw new Error('Missing "type" in contents.json');
-			}
+		if (!('type' in contents)) {
+			throw new Error('Missing "type" in contents.json');
+		}
 
-			if (!('manifest' in contents)) {
-				throw new Error('Missing "manifest" in contents.json');
-			}
+		if (!('manifest' in contents)) {
+			throw new Error('Missing "manifest" in contents.json');
+		}
 
-			if (contents.type !== this.type) {
-				throw new Error(
-					`Expected type (${this.type}) does not match received type (${contents.type})`,
-				);
-			}
+		if (contents.type !== this.type) {
+			throw new Error(
+				`Expected type (${this.type}) does not match received type (${contents.type})`,
+			);
+		}
 
-			this.contents = contents;
+		this.contents = contents;
 
-			return contents.manifest;
-		})();
+		return contents.manifest;
 	}
 
-	async *readResources() {
+	async *resources() {
 		// TODO: we can also possibly read contents.json here
 		// if we allow an API that does not require calling
 		// manifest at all.

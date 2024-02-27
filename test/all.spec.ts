@@ -96,9 +96,9 @@ describe('basic usage', () => {
 
 		const readableBundle = bundle.open(myBundle.pack, 'io.balena.foo@1');
 
-		const manifest = await readableBundle.manifest;
+		const manifest = await readableBundle.manifest();
 
-		for await (const entry of readableBundle.readResources()) {
+		for await (const entry of readableBundle.resources()) {
 			entry.resume();
 		}
 
@@ -157,7 +157,7 @@ describe('basic usage', () => {
 		const readable = bundle.open(writable.pack, 'io.balena.foo@1');
 
 		try {
-			await readable.readResources().next();
+			await readable.resources().next();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Manifest is not yet accessed');
@@ -178,7 +178,7 @@ describe('basic usage', () => {
 		const readable = bundle.open(writable.pack, 'io.balena.bar@1');
 
 		try {
-			await readable.manifest;
+			await readable.manifest();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -205,7 +205,7 @@ describe('basic usage', () => {
 		const readable = bundle.open(pack, 'io.balena.foo@1');
 
 		try {
-			await readable.manifest;
+			await readable.manifest();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "version" in contents.json');
@@ -230,7 +230,7 @@ describe('basic usage', () => {
 		const readable = bundle.open(pack, 'io.balena.foo@1');
 
 		try {
-			await readable.manifest;
+			await readable.manifest();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "type" in contents.json');
@@ -255,7 +255,7 @@ describe('basic usage', () => {
 		const readable = bundle.open(pack, 'io.balena.foo@1');
 
 		try {
-			await readable.manifest;
+			await readable.manifest();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "manifest" in contents.json');
