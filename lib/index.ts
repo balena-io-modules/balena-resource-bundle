@@ -22,6 +22,7 @@ class WritableBundle {
 	constructor(type: string, manifest: any) {
 		const pack = tar.pack();
 
+		// TODO: Should add "resources" here!
 		const contents = {
 			version: 1,
 			type: type,
@@ -115,10 +116,25 @@ class ReadableBundle {
 
 			const result = await this.iterator.next();
 
-			// TODO: add all validation needed on top of the contents.json
 			const entry = result.value;
 
+			// TODO: extract converting stream to json into separate function
+			// TODO: see what this does more specifically with the debugger
 			const contents = await new Response(entry).json();
+
+			// TODO: add all validation needed on top of the contents.json
+			// TODO: extract validation in separate function
+			if (!('version' in contents)) {
+				throw new Error('Missing "version" in contents.json');
+			}
+
+			if (!('type' in contents)) {
+				throw new Error('Missing "type" in contents.json');
+			}
+
+			if (!('manifest' in contents)) {
+				throw new Error('Missing "manifest" in contents.json');
+			}
 
 			if (contents.type !== this.type) {
 				throw new Error(
