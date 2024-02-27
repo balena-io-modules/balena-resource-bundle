@@ -30,7 +30,6 @@ type CreateOptions = {
 	type: string;
 	manifest: any;
 	resources: Resource[];
-	// TODO: amend with resources
 };
 
 function toPrettyJSON(obj: any): string {
