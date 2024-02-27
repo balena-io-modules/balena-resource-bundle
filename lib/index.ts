@@ -3,8 +3,6 @@ import * as stream from 'node:stream';
 
 const CURRENT_BUNDLE_VERSION = '1';
 
-// TODO: Switch to nvm and NodeJS 20
-
 /*
   "resources": [
     {
