@@ -57,24 +57,26 @@ export function createTestable(): TestableBundle {
 /*
 
 {
-  "version": 1,
-  "type": "io.balena.release@4",
+  "version": "1",
+  "type": "release@4",
   "manifest": {
     // the portion of the API state endpoint that
     // describes a single app.
   },
-  "resources": {
-    "registry2.balena-cloud.com/v2/cafebabe": {
-      "type": "docker-image",
+  "resources": [
+    {
+	  "id": "registry2.balena-cloud.com/v2/cafebabe",
       "path": "image0.tar.gz",
+	  "size": 100,
       "digest": "sha256:deadbeef"
     },
-    "registry2.balena-cloud.com/v2/caf3babe": {
-      "type": "docker-image",
+    {
+	  "id": "registry2.balena-cloud.com/v2/caf3babe",
       "path": "image1.tar.gz",
+      "size": 200,
       "digest": "sha256:deadbeef"
     }
-  }
+  ]
 }
 
 */
@@ -82,19 +84,33 @@ export function createTestable(): TestableBundle {
 describe('basic usage', () => {
 	it('create bundle and then open it and read it', async () => {
 		const myBundle = bundle.create({
-			type: 'io.balena.foo@1',
+			type: 'foo@1',
 			manifest: ['hello.txt', 'world.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+				{
+					id: 'world',
+					path: 'world.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		});
 
 		const hello = stringStream('hello');
-		await myBundle.addResource('hello.txt', 5, hello);
+		await myBundle.addResource('hello', hello);
 
 		const world = stringStream('world');
-		await myBundle.addResource('world.txt', 5, world);
+		await myBundle.addResource('world', world);
 
 		await myBundle.finalize();
 
-		const readableBundle = bundle.open(myBundle.pack, 'io.balena.foo@1');
+		const readableBundle = bundle.open(myBundle.pack, 'foo@1');
 
 		const manifest = await readableBundle.manifest();
 
@@ -107,14 +123,22 @@ describe('basic usage', () => {
 
 	it('add resource with stream throwing an error', async () => {
 		const myBundle = bundle.create({
-			type: 'io.balena.foo@1',
-			manifest: ['hello.txt', 'world.txt'],
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		});
 
 		const hello = new ErroringStream('hello');
 
 		try {
-			await myBundle.addResource('hello.txt', 5, hello);
+			await myBundle.addResource('hello', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('ErroringStream is throwing an error');
@@ -123,13 +147,21 @@ describe('basic usage', () => {
 
 	it('add resource with wrong size', async () => {
 		const myBundle = bundle.create({
-			type: 'io.balena.foo@1',
+			type: 'foo@1',
 			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 100,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		});
 
 		try {
 			const hello = stringStream('hello');
-			await myBundle.addResource('hello.txt', 100, hello);
+			await myBundle.addResource('hello', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Size mismatch');
@@ -145,16 +177,24 @@ describe('basic usage', () => {
 
 	it('read resources without accessing manifest', async () => {
 		const writable = bundle.create({
-			type: 'io.balena.foo@1',
+			type: 'foo@1',
 			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		});
 
 		const hello = stringStream('hello');
-		await writable.addResource('hello.txt', 5, hello);
+		await writable.addResource('hello', hello);
 
 		await writable.finalize();
 
-		const readable = bundle.open(writable.pack, 'io.balena.foo@1');
+		const readable = bundle.open(writable.pack, 'foo@1');
 
 		try {
 			await readable.resources().next();
@@ -166,23 +206,31 @@ describe('basic usage', () => {
 
 	it('read manifest with mismatching bundle type', async () => {
 		const writable = bundle.create({
-			type: 'io.balena.foo@1',
+			type: 'foo@1',
 			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		});
 
 		const hello = stringStream('hello');
-		await writable.addResource('hello.txt', 5, hello);
+		await writable.addResource('hello', hello);
 
 		await writable.finalize();
 
-		const readable = bundle.open(writable.pack, 'io.balena.bar@1');
+		const readable = bundle.open(writable.pack, 'bar@1');
 
 		try {
 			await readable.manifest();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Expected type (io.balena.bar@1) does not match received type (io.balena.foo@1)',
+				'Expected type (bar@1) does not match received type (foo@1)',
 			);
 		}
 	});
@@ -192,8 +240,16 @@ describe('basic usage', () => {
 
 		// No "version" specified
 		const contents = {
-			type: 'io.balena.foo@1',
+			type: 'foo@1',
 			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		};
 
 		const json = JSON.stringify(contents);
@@ -202,7 +258,7 @@ describe('basic usage', () => {
 
 		pack.finalize();
 
-		const readable = bundle.open(pack, 'io.balena.foo@1');
+		const readable = bundle.open(pack, 'foo@1');
 
 		try {
 			await readable.manifest();
@@ -219,6 +275,14 @@ describe('basic usage', () => {
 		const contents = {
 			version: 1,
 			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		};
 
 		const json = JSON.stringify(contents);
@@ -227,7 +291,7 @@ describe('basic usage', () => {
 
 		pack.finalize();
 
-		const readable = bundle.open(pack, 'io.balena.foo@1');
+		const readable = bundle.open(pack, 'foo@1');
 
 		try {
 			await readable.manifest();
@@ -243,7 +307,15 @@ describe('basic usage', () => {
 		// No "manifest" specified
 		const contents = {
 			version: 1,
-			type: 'io.balena.foo@1',
+			type: 'foo@1',
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
 		};
 
 		const json = JSON.stringify(contents);
@@ -252,7 +324,7 @@ describe('basic usage', () => {
 
 		pack.finalize();
 
-		const readable = bundle.open(pack, 'io.balena.foo@1');
+		const readable = bundle.open(pack, 'foo@1');
 
 		try {
 			await readable.manifest();

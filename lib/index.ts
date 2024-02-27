@@ -1,11 +1,38 @@
 import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
+const CURRENT_BUNDLE_VERSION = '1';
+
 // TODO: Switch to nvm and NodeJS 20
+
+/*
+  "resources": [
+    {
+	  "id": "registry2.balena-cloud.com/v2/cafebabe",
+      "path": "image0.tar.gz",
+	  "size": 100,
+      "digest": "sha256:deadbeef"
+    },
+    {
+	  "id": "registry2.balena-cloud.com/v2/caf3babe",
+      "path": "image1.tar.gz",
+      "size": 200,
+      "digest": "sha256:deadbeef"
+    }
+  ]
+*/
+interface Resource {
+	id: string;
+	path: string;
+	size: number;
+	digest: string;
+}
 
 type CreateOptions = {
 	type: string;
 	manifest: any;
+	resources: Resource[];
+	// TODO: amend with resources
 };
 
 function toPrettyJSON(obj: any): string {
@@ -16,18 +43,21 @@ function toPrettyJSON(obj: any): string {
 
 class WritableBundle {
 	pack: tar.Pack;
-	resourcePromises: Array<Promise<void>>;
 	packError: Error | undefined;
+	resources: Resource[];
+	resourcePromises: Array<Promise<void>>;
 
-	constructor(type: string, manifest: any) {
+	constructor(type: string, manifest: any, resources: Resource[]) {
 		const pack = tar.pack();
 
-		// TODO: Should add "resources" here!
 		const contents = {
-			version: 1,
+			version: '1',
 			type: type,
 			manifest: manifest,
+			resources: resources,
 		};
+
+		// TODO: Create the signature of contents.json and insert if afterwards
 
 		const json = toPrettyJSON(contents);
 
@@ -38,28 +68,32 @@ class WritableBundle {
 		});
 
 		this.pack = pack;
+		this.resources = resources;
 		this.resourcePromises = [];
 	}
 
-	async addResource(
-		name: string,
-		size: number,
-		resourceStream: stream.Readable,
-	): Promise<void> {
-		const promise = new Promise<void>((resolve, reject) => {
-			const path = 'resources/' + name;
-			const entryStream = this.pack.entry(
-				{ name: path, size: size },
-				function (err) {
-					if (err == null) {
-						resolve();
-					} else {
-						reject(err);
-					}
-				},
-			);
+	async addResource(id: string, data: stream.Readable): Promise<void> {
+		const resource = this.resources.find((res) => res.id === id);
 
-			stream.pipeline(resourceStream, entryStream, (err) => {
+		// TODO: Add test for unknown resource ID
+		if (resource == null) {
+			throw new Error(`Unknown resource ${id}`);
+		}
+
+		const { size, path } = resource;
+
+		const promise = new Promise<void>((resolve, reject) => {
+			const name = 'resources/' + path;
+			const entry = this.pack.entry({ name, size }, function (err) {
+				if (err == null) {
+					resolve();
+				} else {
+					reject(err);
+				}
+			});
+
+			// TODO: validate checksum of data
+			stream.pipeline(data, entry, (err) => {
 				if (err) {
 					reject(err);
 				}
@@ -83,7 +117,7 @@ class WritableBundle {
 }
 
 export function create(options: CreateOptions): WritableBundle {
-	return new WritableBundle(options.type, options.manifest);
+	return new WritableBundle(options.type, options.manifest, options.resources);
 }
 
 class ReadableBundle {
@@ -119,10 +153,10 @@ class ReadableBundle {
 
 		// TODO: extract converting stream to json into separate function
 		// TODO: see what this does more specifically with the debugger
+		// TODO: make sure it is indeed a JSON
 		const contents = await new Response(entry).json();
 
 		// TODO: add all validation needed on top of the contents.json
-		// TODO: extract validation in separate function
 		if (!('version' in contents)) {
 			throw new Error('Missing "version" in contents.json');
 		}
@@ -133,6 +167,14 @@ class ReadableBundle {
 
 		if (!('manifest' in contents)) {
 			throw new Error('Missing "manifest" in contents.json');
+		}
+
+		// TODO: Do version negotiation
+		// TODO: Add a test for version mismatch
+		if (contents.version !== CURRENT_BUNDLE_VERSION) {
+			throw new Error(
+				`Unsupported bundle version ${contents.version} (expected ${CURRENT_BUNDLE_VERSION})`,
+			);
 		}
 
 		if (contents.type !== this.type) {
@@ -164,6 +206,7 @@ class ReadableBundle {
 			}
 
 			// TODO: skip or error out on other items that are not resources
+			// TODO: the user needs to access the resources descriptors as well
 			yield value;
 		}
 	}
