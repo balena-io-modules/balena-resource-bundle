@@ -153,7 +153,11 @@ class ReadableBundle {
 		// TODO: make sure it is indeed a JSON
 		const contents = await new Response(entry).json();
 
-		// TODO: add all validation needed on top of the contents.json
+		// TODO: can we convert the JSON contents to some new Contents type 
+		// and achieve some autovalidation this way
+
+		// TODO: make sure we do all the validation needed for contents.json here
+
 		if (!('version' in contents)) {
 			throw new Error('Missing "version" in contents.json');
 		}
@@ -165,6 +169,8 @@ class ReadableBundle {
 		if (!('manifest' in contents)) {
 			throw new Error('Missing "manifest" in contents.json');
 		}
+
+		// TODO: Add a test for resources existence
 
 		// TODO: Do version negotiation
 		// TODO: Add a test for version mismatch
