@@ -47,7 +47,7 @@ class WritableBundle {
 		const pack = tar.pack();
 
 		const contents = {
-			version: '1',
+			version: CURRENT_BUNDLE_VERSION,
 			type: type,
 			manifest: manifest,
 			resources: resources,
