@@ -2,6 +2,7 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 const CURRENT_BUNDLE_VERSION = '1';
+const CONTENTS_JSON = 'contents.json';
 
 /*
   "resources": [
@@ -57,7 +58,7 @@ class WritableBundle {
 
 		const json = toPrettyJSON(contents);
 
-		pack.entry({ name: 'contents.json' }, json);
+		pack.entry({ name: CONTENTS_JSON }, json);
 
 		pack.on('error', (err) => {
 			this.packError = err;
@@ -140,7 +141,7 @@ class ReadableBundle {
 	private async parseContents(entry: tar.Entry) {
 		// TODO: add a test for already parsed contents.json
 		if (this.contents != null) {
-			throw new Error('contents.json is already parsed');
+			throw new Error(`${CONTENTS_JSON} is already parsed`);
 		}
 
 		// TODO: validate this is indeed contents.json and add test for this
@@ -154,7 +155,7 @@ class ReadableBundle {
 		const requiredKeys = ['version', 'type', 'manifest', 'resources'];
 		for (const key of requiredKeys) {
 			if (!(key in contents)) {
-				throw new Error(`Missing "${key}" in contents.json`);
+				throw new Error(`Missing "${key}" in ${CONTENTS_JSON}`);
 			}
 		}
 
@@ -204,7 +205,7 @@ class ReadableBundle {
 			const value = result.value;
 
 			const path = value.header.name;
-			if (path === 'contents.json') {
+			if (path === CONTENTS_JSON) {
 				throw new Error('Manifest is not yet accessed');
 			}
 
