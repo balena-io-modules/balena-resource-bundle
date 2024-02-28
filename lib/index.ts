@@ -148,9 +148,10 @@ class ReadableBundle {
 
 		const entry = result.value;
 
+		// TODO: validate this is indeed contents.json and add test for this
+
 		// TODO: extract converting stream to json into separate function
 		// TODO: see what this does more specifically with the debugger
-		// TODO: make sure it is indeed a JSON
 		const contents = await new Response(entry).json();
 
 		// TODO: make sure we cover all the validation needed for contents.json
