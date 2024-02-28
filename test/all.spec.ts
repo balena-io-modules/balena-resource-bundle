@@ -9,51 +9,6 @@ import * as bundle from '../lib';
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
-function stringStream(str: string): stream.Readable {
-	// TODO: check objectMode
-	return stream.Readable.from([str], { objectMode: false });
-}
-
-class ErroringStream extends stream.Readable {
-	shouldError: boolean = false;
-
-	constructor(private content: string) {
-		// TODO: check objectMode
-		super({ objectMode: false });
-	}
-
-	_read() {
-		if (this.shouldError) {
-			this.emit('error', new Error('ErroringStream is throwing an error'));
-		} else {
-			this.push(this.content);
-
-			this.shouldError = true;
-		}
-	}
-}
-
-class TestableBundle {
-	pack: tar.Pack;
-
-	constructor() {
-		const pack = tar.pack();
-		this.pack = pack;
-	}
-
-	async addFile(name: string, contents: string) {
-		this.pack.entry({ name: name }, contents);
-	}
-
-	async finalize() {
-		this.pack.finalize();
-	}
-}
-
-export function createTestable(): TestableBundle {
-	return new TestableBundle();
-}
-
 /*
 
 {
@@ -80,6 +35,30 @@ export function createTestable(): TestableBundle {
 }
 
 */
+
+function stringStream(str: string): stream.Readable {
+	// TODO: check objectMode
+	return stream.Readable.from([str], { objectMode: false });
+}
+
+class ErroringStream extends stream.Readable {
+	shouldError: boolean = false;
+
+	constructor(private content: string) {
+		// TODO: check objectMode
+		super({ objectMode: false });
+	}
+
+	_read() {
+		if (this.shouldError) {
+			this.emit('error', new Error('ErroringStream is throwing an error'));
+		} else {
+			this.push(this.content);
+
+			this.shouldError = true;
+		}
+	}
+}
 
 describe('basic usage', () => {
 	it('create bundle and then open it and read it', async () => {
@@ -271,7 +250,7 @@ describe('basic usage', () => {
 	it('read contents.json with missing type', async () => {
 		const pack = tar.pack();
 
-		// No "contents.jsoncontents.json" specified
+		// No "type" specified
 		const contents = {
 			version: 1,
 			manifest: ['hello.txt'],
@@ -331,6 +310,32 @@ describe('basic usage', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "manifest" in contents.json');
+		}
+	});
+
+	it('read contents.json with missing resources', async () => {
+		const pack = tar.pack();
+
+		// No "resources" specified
+		const contents = {
+			version: 1,
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+		};
+
+		const json = JSON.stringify(contents);
+
+		pack.entry({ name: 'contents.json' }, json);
+
+		pack.finalize();
+
+		const readable = bundle.open(pack, 'foo@1');
+
+		try {
+			await readable.manifest();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal('Missing "resources" in contents.json');
 		}
 	});
 });

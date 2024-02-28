@@ -158,7 +158,7 @@ class ReadableBundle {
 			}
 		}
 
-		// TODO: Add a test for resources existence
+		// TODO: Validate resources contents
 
 		// TODO: Do version negotiation
 		// TODO: Add a test for version mismatch
