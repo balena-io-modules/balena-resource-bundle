@@ -60,6 +60,20 @@ class ErroringStream extends stream.Readable {
 	}
 }
 
+function createEmptyBundleWithTestContents(contents) {
+	const pack = tar.pack();
+
+	const json = JSON.stringify(contents);
+
+	pack.entry({ name: 'contents.json' }, json);
+
+	pack.finalize();
+
+	const readable = bundle.open(pack, 'foo@1');
+
+	return readable;
+}
+
 describe('basic usage', () => {
 	it('create bundle and then open it and read it', async () => {
 		const myBundle = bundle.create({
@@ -215,8 +229,6 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing version', async () => {
-		const pack = tar.pack();
-
 		// No "version" specified
 		const contents = {
 			type: 'foo@1',
@@ -231,13 +243,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const json = JSON.stringify(contents);
-
-		pack.entry({ name: 'contents.json' }, json);
-
-		pack.finalize();
-
-		const readable = bundle.open(pack, 'foo@1');
+		const readable = createEmptyBundleWithTestContents(contents);
 
 		try {
 			await readable.manifest();
@@ -248,8 +254,6 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing type', async () => {
-		const pack = tar.pack();
-
 		// No "type" specified
 		const contents = {
 			version: 1,
@@ -264,13 +268,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const json = JSON.stringify(contents);
-
-		pack.entry({ name: 'contents.json' }, json);
-
-		pack.finalize();
-
-		const readable = bundle.open(pack, 'foo@1');
+		const readable = createEmptyBundleWithTestContents(contents);
 
 		try {
 			await readable.manifest();
@@ -281,8 +279,6 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing manifest', async () => {
-		const pack = tar.pack();
-
 		// No "manifest" specified
 		const contents = {
 			version: 1,
@@ -297,13 +293,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const json = JSON.stringify(contents);
-
-		pack.entry({ name: 'contents.json' }, json);
-
-		pack.finalize();
-
-		const readable = bundle.open(pack, 'foo@1');
+		const readable = createEmptyBundleWithTestContents(contents);
 
 		try {
 			await readable.manifest();
@@ -314,8 +304,6 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing resources', async () => {
-		const pack = tar.pack();
-
 		// No "resources" specified
 		const contents = {
 			version: 1,
@@ -323,13 +311,7 @@ describe('basic usage', () => {
 			manifest: ['hello.txt'],
 		};
 
-		const json = JSON.stringify(contents);
-
-		pack.entry({ name: 'contents.json' }, json);
-
-		pack.finalize();
-
-		const readable = bundle.open(pack, 'foo@1');
+		const readable = createEmptyBundleWithTestContents(contents);
 
 		try {
 			await readable.manifest();
