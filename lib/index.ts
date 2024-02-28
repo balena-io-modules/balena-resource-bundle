@@ -125,7 +125,6 @@ class ReadableBundle {
 	constructor(input: stream.Readable, type: string) {
 		const extract = tar.extract();
 
-		// TODO: Possibly move this `pipeline` call to `manifest`
 		stream.pipeline(input, extract, (err) => {
 			// TODO: Figure out more details about this callback
 			if (err) {
