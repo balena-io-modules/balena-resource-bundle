@@ -54,11 +54,11 @@ class WritableBundle {
 			resources: resources,
 		};
 
-		// TODO: Create the signature of contents.json and insert if afterwards
-
 		const json = toPrettyJSON(contents);
 
 		pack.entry({ name: CONTENTS_JSON }, json);
+
+		// TODO: Create the signature of contents.json and insert if afterwards
 
 		pack.on('error', (err) => {
 			this.packError = err;
@@ -173,6 +173,17 @@ class ReadableBundle {
 			throw new Error(
 				`Expected type (${this.type}) does not match received type (${contents.type})`,
 			);
+		}
+
+		for (const resource of contents.resources) {
+			const requiredResourceKeys = ['id', 'path', 'size', 'digest'];
+			for (const key of requiredResourceKeys) {
+				if (!(key in resource)) {
+					throw new Error(
+						`Missing "${key}" in "resources" of ${CONTENTS_JSON}`,
+					);
+				}
+			}
 		}
 
 		this.contents = contents;

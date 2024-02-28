@@ -229,8 +229,8 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing version', async () => {
-		// No "version" specified
 		const contents = {
+			// version: '1',
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -254,9 +254,9 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing type', async () => {
-		// No "type" specified
 		const contents = {
-			version: 1,
+			version: '1',
+			// type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
 				{
@@ -279,10 +279,10 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing manifest', async () => {
-		// No "manifest" specified
 		const contents = {
-			version: 1,
+			version: '1',
 			type: 'foo@1',
+			// manifest: ['hello.txt'],
 			resources: [
 				{
 					id: 'hello',
@@ -304,11 +304,11 @@ describe('basic usage', () => {
 	});
 
 	it('read contents.json with missing resources', async () => {
-		// No "resources" specified
 		const contents = {
-			version: 1,
+			version: '1',
 			type: 'foo@1',
 			manifest: ['hello.txt'],
+			// resources: [...]
 		};
 
 		const readable = createEmptyBundleWithTestContents(contents);
@@ -318,6 +318,114 @@ describe('basic usage', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "resources" in contents.json');
+		}
+	});
+
+	it('read contents.json with missing resource id', async () => {
+		const contents = {
+			version: '1',
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					// id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
+		};
+
+		const readable = createEmptyBundleWithTestContents(contents);
+
+		try {
+			await readable.manifest();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Missing "id" in "resources" of contents.json',
+			);
+		}
+	});
+
+	it('read contents.json with missing resource path', async () => {
+		const contents = {
+			version: '1',
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					// path: 'hello.txt',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
+		};
+
+		const readable = createEmptyBundleWithTestContents(contents);
+
+		try {
+			await readable.manifest();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Missing "path" in "resources" of contents.json',
+			);
+		}
+	});
+
+	it('read contents.json with missing resource size', async () => {
+		const contents = {
+			version: '1',
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					// size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
+		};
+
+		const readable = createEmptyBundleWithTestContents(contents);
+
+		try {
+			await readable.manifest();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Missing "size" in "resources" of contents.json',
+			);
+		}
+	});
+
+	it('read contents.json with missing resource digest', async () => {
+		const contents = {
+			version: '1',
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					// digest: 'sha256:deadbeef',
+				},
+			],
+		};
+
+		const readable = createEmptyBundleWithTestContents(contents);
+
+		try {
+			await readable.manifest();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Missing "digest" in "resources" of contents.json',
+			);
 		}
 	});
 });
