@@ -33,8 +33,7 @@ type CreateOptions = {
 };
 
 function toPrettyJSON(obj: any): string {
-	// Convert contents to pretty JSON with appended
-	// new line at the end
+	// Convert contents to pretty JSON with appended new line
 	return JSON.stringify(obj, null, 2) + '\n';
 }
 
