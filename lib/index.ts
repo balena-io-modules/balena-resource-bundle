@@ -139,20 +139,17 @@ class ReadableBundle {
 		this.iterator = extract[Symbol.asyncIterator]();
 	}
 
-	async manifest(): Promise<any> {
+	private async parseContents(entry: tar.Entry) {
+		// TODO: add a test for already parsed contents.json
 		if (this.contents != null) {
-			return this.contents.manifest;
+			throw new Error('contents.json is already parsed');
 		}
-
-		const result = await this.iterator.next();
-
-		const entry = result.value;
 
 		// TODO: validate this is indeed contents.json and add test for this
 
 		// TODO: extract converting stream to json into separate function
 		// TODO: see what this does more specifically with the debugger
-		const contents = await new Response(entry).json();
+		const contents = await new Response(entry as any).json();
 
 		// TODO: make sure we cover all the validation needed for contents.json
 
@@ -180,8 +177,20 @@ class ReadableBundle {
 		}
 
 		this.contents = contents;
+	}
 
-		return contents.manifest;
+	async manifest(): Promise<any> {
+		if (this.contents != null) {
+			return this.contents.manifest;
+		}
+
+		const result = await this.iterator.next();
+
+		const entry = result.value;
+
+		await this.parseContents(entry);
+
+		return this.contents.manifest;
 	}
 
 	async *resources() {
