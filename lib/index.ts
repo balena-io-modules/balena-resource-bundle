@@ -153,21 +153,13 @@ class ReadableBundle {
 		// TODO: make sure it is indeed a JSON
 		const contents = await new Response(entry).json();
 
-		// TODO: can we convert the JSON contents to some new Contents type 
-		// and achieve some autovalidation this way
+		// TODO: make sure we cover all the validation needed for contents.json
 
-		// TODO: make sure we do all the validation needed for contents.json here
-
-		if (!('version' in contents)) {
-			throw new Error('Missing "version" in contents.json');
-		}
-
-		if (!('type' in contents)) {
-			throw new Error('Missing "type" in contents.json');
-		}
-
-		if (!('manifest' in contents)) {
-			throw new Error('Missing "manifest" in contents.json');
+		const requiredKeys = ['version', 'type', 'manifest', 'resources'];
+		for (const key of requiredKeys) {
+			if (!(key in contents)) {
+				throw new Error(`Missing "${key}" in contents.json`);
+			}
 		}
 
 		// TODO: Add a test for resources existence
