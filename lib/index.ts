@@ -1,9 +1,12 @@
 import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
+import * as crypto from 'node:crypto';
 
 const CURRENT_BUNDLE_VERSION = '1';
 const CONTENTS_JSON = 'contents.json';
 const RESOURCES_DIR = 'resources';
+
+// TODO: Split all functionality in separate modules - readable.ts, etc.
 
 /*
 {
@@ -93,7 +96,8 @@ class WritableBundle<T> {
 
 		const { size, digest } = resource;
 
-		const checksum = digest.split(':')[1];
+		// TODO: This is not validated
+		const [algorithm, checksum] = digest.split(':');
 
 		// TODO: Can we test deduplication here?
 		if (this.addedChecksums.includes(checksum)) {
@@ -101,9 +105,12 @@ class WritableBundle<T> {
 		}
 
 		const promise = new Promise<void>((resolve, reject) => {
+			const hasher = new HashThrough(algorithm);
+
 			const name = `${RESOURCES_DIR}/` + checksum;
 			const entry = this.pack.entry({ name, size }, function (err) {
 				if (err == null) {
+					console.debug(`Expected ${checksum}, received ${hasher.digest}`);
 					resolve();
 				} else {
 					reject(err);
@@ -111,7 +118,7 @@ class WritableBundle<T> {
 			});
 
 			// TODO: validate checksum of data - check Node.js crypto
-			stream.pipeline(data, entry, (err) => {
+			stream.pipeline(data, hasher, entry, (err) => {
 				if (err) {
 					reject(err);
 				}
@@ -266,4 +273,22 @@ export function open<T>(
 	type: string,
 ): ReadableBundle<T> {
 	return new ReadableBundle(input, type);
+}
+
+class HashThrough extends stream.PassThrough {
+	hash: crypto.Hash;
+
+	constructor(algorithm: string) {
+		super();
+
+		const hash = crypto.createHash(algorithm);
+
+		this.on('data', (chunk) => hash.update(chunk));
+
+		this.hash = hash;
+	}
+
+	get digest(): string {
+		return this.hash.digest('hex');
+	}
 }
