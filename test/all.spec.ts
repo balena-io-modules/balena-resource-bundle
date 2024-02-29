@@ -82,15 +82,13 @@ describe('basic usage', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest: 'sha256:deadbeef',
 				},
 				{
 					id: 'world',
-					path: 'world.txt',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest: 'sha256:cafebabe',
 				},
 			],
 		});
@@ -107,8 +105,9 @@ describe('basic usage', () => {
 
 		const manifest = await readableBundle.manifest();
 
-		for await (const entry of readableBundle.resources()) {
-			entry.resume();
+		for await (const { resource } of readableBundle.resources()) {
+			resource.resume();
+			// TODO: Compare descriptors
 		}
 
 		expect(manifest).to.eql(['hello.txt', 'world.txt']);
@@ -121,7 +120,6 @@ describe('basic usage', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest: 'sha256:deadbeef',
 				},
@@ -145,7 +143,6 @@ describe('basic usage', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 100,
 					digest: 'sha256:deadbeef',
 				},
@@ -175,7 +172,6 @@ describe('basic usage', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest: 'sha256:deadbeef',
 				},
@@ -193,7 +189,9 @@ describe('basic usage', () => {
 			await readable.resources().next();
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal('Manifest is not yet accessed');
+			expect(error.message).to.equal(
+				'Must call `manifest()` before `resources()`',
+			);
 		}
 	});
 
@@ -204,7 +202,6 @@ describe('basic usage', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest: 'sha256:deadbeef',
 				},
@@ -329,7 +326,6 @@ describe('basic usage', () => {
 			resources: [
 				{
 					// id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest: 'sha256:deadbeef',
 				},
@@ -348,33 +344,6 @@ describe('basic usage', () => {
 		}
 	});
 
-	it('read contents.json with missing resource path', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					// path: 'hello.txt',
-					size: 5,
-					digest: 'sha256:deadbeef',
-				},
-			],
-		};
-
-		const readable = createEmptyBundleWithTestContents(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal(
-				'Missing "path" in "resources" of contents.json',
-			);
-		}
-	});
-
 	it('read contents.json with missing resource size', async () => {
 		const contents = {
 			version: '1',
@@ -383,7 +352,6 @@ describe('basic usage', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					// size: 5,
 					digest: 'sha256:deadbeef',
 				},
@@ -410,7 +378,6 @@ describe('basic usage', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					// digest: 'sha256:deadbeef',
 				},

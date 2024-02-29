@@ -3,55 +3,68 @@ import * as stream from 'node:stream';
 
 const CURRENT_BUNDLE_VERSION = '1';
 const CONTENTS_JSON = 'contents.json';
+const RESOURCES_DIR = 'resources';
 
 /*
+{
+  "version": "1",
+  "type": "release@4",
+  "manifest": {
+    // the portion of the API state endpoint that
+    // describes a single app.
+  },
   "resources": [
     {
 	  "id": "registry2.balena-cloud.com/v2/cafebabe",
-      "path": "image0.tar.gz",
+      "type": "tar.gz",
 	  "size": 100,
       "digest": "sha256:deadbeef"
     },
     {
 	  "id": "registry2.balena-cloud.com/v2/caf3babe",
-      "path": "image1.tar.gz",
+      "type": "tar.gz",
       "size": 200,
       "digest": "sha256:deadbeef"
     }
   ]
+}
 */
 interface Resource {
 	id: string;
-	path: string;
 	size: number;
 	digest: string;
+	type?: string;
 }
 
-type CreateOptions = {
+interface Contents<T> {
+	version: string;
 	type: string;
-	manifest: any;
+	manifest: T;
 	resources: Resource[];
-};
+}
+
+type CreateOptions<T> = Omit<Contents<T>, 'version'>;
 
 function toPrettyJSON(obj: any): string {
 	// Convert contents to pretty JSON with appended new line
 	return JSON.stringify(obj, null, 2) + '\n';
 }
 
-class WritableBundle {
+class WritableBundle<T> {
 	pack: tar.Pack;
 	packError: Error | undefined;
 	resources: Resource[];
 	resourcePromises: Array<Promise<void>>;
+	addedChecksums: string[];
 
-	constructor(type: string, manifest: any, resources: Resource[]) {
+	constructor(type: string, manifest: T, resources: Resource[]) {
 		const pack = tar.pack();
 
-		const contents = {
+		const contents: Contents<T> = {
 			version: CURRENT_BUNDLE_VERSION,
-			type: type,
-			manifest: manifest,
-			resources: resources,
+			type,
+			manifest,
+			resources,
 		};
 
 		const json = toPrettyJSON(contents);
@@ -67,6 +80,7 @@ class WritableBundle {
 		this.pack = pack;
 		this.resources = resources;
 		this.resourcePromises = [];
+		this.addedChecksums = [];
 	}
 
 	async addResource(id: string, data: stream.Readable): Promise<void> {
@@ -77,10 +91,17 @@ class WritableBundle {
 			throw new Error(`Unknown resource ${id}`);
 		}
 
-		const { size, path } = resource;
+		const { size, digest } = resource;
+
+		const checksum = digest.split(':')[1];
+
+		// TODO: Can we test deduplication here?
+		if (this.addedChecksums.includes(checksum)) {
+			return Promise.resolve();
+		}
 
 		const promise = new Promise<void>((resolve, reject) => {
-			const name = 'resources/' + path;
+			const name = `${RESOURCES_DIR}/` + checksum;
 			const entry = this.pack.entry({ name, size }, function (err) {
 				if (err == null) {
 					resolve();
@@ -89,7 +110,7 @@ class WritableBundle {
 				}
 			});
 
-			// TODO: validate checksum of data
+			// TODO: validate checksum of data - check Node.js crypto
 			stream.pipeline(data, entry, (err) => {
 				if (err) {
 					reject(err);
@@ -113,14 +134,14 @@ class WritableBundle {
 	}
 }
 
-export function create(options: CreateOptions): WritableBundle {
+export function create<T>(options: CreateOptions<T>): WritableBundle<T> {
 	return new WritableBundle(options.type, options.manifest, options.resources);
 }
 
-class ReadableBundle {
+class ReadableBundle<T> {
 	extract: tar.Extract;
 	type: string;
-	contents: any | undefined;
+	contents: Contents<T> | undefined;
 	iterator: AsyncIterator<tar.Entry, any, undefined>;
 
 	constructor(input: stream.Readable, type: string) {
@@ -138,7 +159,7 @@ class ReadableBundle {
 		this.iterator = extract[Symbol.asyncIterator]();
 	}
 
-	private async parseContents(entry: tar.Entry) {
+	private async parseContents(entry: tar.Entry): Promise<Contents<T>> {
 		// TODO: add a test for already parsed contents.json
 		if (this.contents != null) {
 			throw new Error(`${CONTENTS_JSON} is already parsed`);
@@ -148,7 +169,7 @@ class ReadableBundle {
 
 		// TODO: extract converting stream to json into separate function
 		// TODO: see what this does more specifically with the debugger
-		const contents = await new Response(entry as any).json();
+		const contents: Contents<T> = await new Response(entry as any).json();
 
 		// TODO: make sure we cover all the validation needed for contents.json
 
@@ -176,7 +197,7 @@ class ReadableBundle {
 		}
 
 		for (const resource of contents.resources) {
-			const requiredResourceKeys = ['id', 'path', 'size', 'digest'];
+			const requiredResourceKeys = ['id', 'size', 'digest'];
 			for (const key of requiredResourceKeys) {
 				if (!(key in resource)) {
 					throw new Error(
@@ -186,10 +207,10 @@ class ReadableBundle {
 			}
 		}
 
-		this.contents = contents;
+		return contents;
 	}
 
-	async manifest(): Promise<any> {
+	async manifest(): Promise<T> {
 		if (this.contents != null) {
 			return this.contents.manifest;
 		}
@@ -198,35 +219,51 @@ class ReadableBundle {
 
 		const entry = result.value;
 
-		await this.parseContents(entry);
+		this.contents = await this.parseContents(entry);
 
 		return this.contents.manifest;
 	}
 
 	async *resources() {
-		// TODO: we can also possibly read contents.json here
-		// if we allow an API that does not require calling
-		// manifest at all.
+		if (this.contents == null) {
+			throw new Error('Must call `manifest()` before `resources()`');
+		}
+
 		while (true) {
 			const result = await this.iterator.next();
 			if (result.done) {
 				break;
 			}
 
-			const value = result.value;
+			const entry = result.value;
 
-			const path = value.header.name;
-			if (path === CONTENTS_JSON) {
-				throw new Error('Manifest is not yet accessed');
-			}
+			const path = entry.header.name;
+
+			// TODO: Error on non-resources
+			// TODO: check node.js path library for splitting this
+			const checksum = path.split(`${RESOURCES_DIR}/`)[1];
+
+			// TODO: Error on missing descriptors
+			const descriptors = this.contents.resources.filter(
+				(descriptor) => descriptor.digest.split(':')[1] === checksum,
+			);
+
+			// TODO: Test for duplicated resources
 
 			// TODO: skip or error out on other items that are not resources
 			// TODO: the user needs to access the resources descriptors as well
-			yield value;
+			// TODO: Define interface for this return type
+			yield {
+				resource: entry,
+				descriptors,
+			};
 		}
 	}
 }
 
-export function open(input: stream.Readable, type: string): ReadableBundle {
+export function open<T>(
+	input: stream.Readable,
+	type: string,
+): ReadableBundle<T> {
 	return new ReadableBundle(input, type);
 }
