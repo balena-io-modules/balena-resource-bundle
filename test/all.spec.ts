@@ -9,8 +9,9 @@ import * as bundle from '../lib';
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
-/*
+// TODO: Split all tests in separate modules
 
+/*
 {
   "version": "1",
   "type": "release@4",
@@ -21,23 +22,22 @@ const expect = chai.expect;
   "resources": [
     {
 	  "id": "registry2.balena-cloud.com/v2/cafebabe",
-      "path": "image0.tar.gz",
+      "type": "tar.gz",
 	  "size": 100,
       "digest": "sha256:deadbeef"
     },
     {
 	  "id": "registry2.balena-cloud.com/v2/caf3babe",
-      "path": "image1.tar.gz",
+      "type": "tar.gz",
       "size": 200,
       "digest": "sha256:deadbeef"
     }
   ]
 }
-
 */
 
 function stringStream(str: string): stream.Readable {
-	// TODO: check objectMode
+	// TODO: Check objectMode
 	return stream.Readable.from([str], { objectMode: false });
 }
 
@@ -45,7 +45,7 @@ class ErroringStream extends stream.Readable {
 	shouldError: boolean = false;
 
 	constructor(private content: string) {
-		// TODO: check objectMode
+		// TODO: Check objectMode
 		super({ objectMode: false });
 	}
 

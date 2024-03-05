@@ -8,30 +8,9 @@ const RESOURCES_DIR = 'resources';
 
 // TODO: Split all functionality in separate modules - readable.ts, etc.
 
-/*
-{
-  "version": "1",
-  "type": "release@4",
-  "manifest": {
-    // the portion of the API state endpoint that
-    // describes a single app.
-  },
-  "resources": [
-    {
-	  "id": "registry2.balena-cloud.com/v2/cafebabe",
-      "type": "tar.gz",
-	  "size": 100,
-      "digest": "sha256:deadbeef"
-    },
-    {
-	  "id": "registry2.balena-cloud.com/v2/caf3babe",
-      "type": "tar.gz",
-      "size": 200,
-      "digest": "sha256:deadbeef"
-    }
-  ]
-}
-*/
+// TODO: After clearing out current todos do another pass to make sure nothing is omitted
+
+// TODO: Tansfer back schema to specification on Fibery
 interface Resource {
 	id: string;
 	size: number;
@@ -54,6 +33,7 @@ function toPrettyJSON(obj: any): string {
 }
 
 class WritableBundle<T> {
+	// TODO: Mark fields as private
 	pack: tar.Pack;
 	packError: Error | undefined;
 	resources: Resource[];
@@ -96,29 +76,32 @@ class WritableBundle<T> {
 
 		const { size, digest } = resource;
 
-		// TODO: This is not validated
-		const [algorithm, checksum] = digest.split(':');
+		// TODO: Validate this split here
+		const [_algorithm, checksum] = digest.split(':');
 
-		// TODO: Can we test deduplication here?
+		// TODO: Create deduplication test(s) and make sure they
+
+		// TODO: Store checksums only
 		if (this.addedChecksums.includes(checksum)) {
 			return Promise.resolve();
+		} else {
+			this.addedChecksums.push(checksum);
 		}
 
 		const promise = new Promise<void>((resolve, reject) => {
-			const hasher = new HashThrough(algorithm);
+			const hasher = new Hasher(digest, data);
 
 			const name = `${RESOURCES_DIR}/` + checksum;
 			const entry = this.pack.entry({ name, size }, function (err) {
 				if (err == null) {
-					console.debug(`Expected ${checksum}, received ${hasher.digest}`);
 					resolve();
 				} else {
 					reject(err);
 				}
 			});
 
-			// TODO: validate checksum of data - check Node.js crypto
-			stream.pipeline(data, hasher, entry, (err) => {
+			// TODO: Test checksum validation of data
+			stream.pipeline(hasher, entry, (err) => {
 				if (err) {
 					reject(err);
 				}
@@ -146,6 +129,7 @@ export function create<T>(options: CreateOptions<T>): WritableBundle<T> {
 }
 
 class ReadableBundle<T> {
+	// TODO: Mark fields as private
 	extract: tar.Extract;
 	type: string;
 	contents: Contents<T> | undefined;
@@ -167,18 +151,18 @@ class ReadableBundle<T> {
 	}
 
 	private async parseContents(entry: tar.Entry): Promise<Contents<T>> {
-		// TODO: add a test for already parsed contents.json
+		// TODO: Add a test for already parsed contents.json
 		if (this.contents != null) {
 			throw new Error(`${CONTENTS_JSON} is already parsed`);
 		}
 
-		// TODO: validate this is indeed contents.json and add test for this
+		// TODO: Validate this is indeed contents.json and add test for this
 
-		// TODO: extract converting stream to json into separate function
-		// TODO: see what this does more specifically with the debugger
+		// TODO: Extract converting stream to json into separate function
+		// TODO: See what this does more specifically with the debugger
 		const contents: Contents<T> = await new Response(entry as any).json();
 
-		// TODO: make sure we cover all the validation needed for contents.json
+		// TODO: Make sure we cover all the validation needed for contents.json
 
 		const requiredKeys = ['version', 'type', 'manifest', 'resources'];
 		for (const key of requiredKeys) {
@@ -186,8 +170,6 @@ class ReadableBundle<T> {
 				throw new Error(`Missing "${key}" in ${CONTENTS_JSON}`);
 			}
 		}
-
-		// TODO: Validate resources contents
 
 		// TODO: Do version negotiation
 		// TODO: Add a test for version mismatch
@@ -213,6 +195,10 @@ class ReadableBundle<T> {
 				}
 			}
 		}
+
+		// TODO: Validate the specific fields of resources contents here
+		// This way we will not have to re-validate when we use it
+		// TODO: Also add tests for each added validation
 
 		return contents;
 	}
@@ -246,22 +232,31 @@ class ReadableBundle<T> {
 
 			const path = entry.header.name;
 
-			// TODO: Error on non-resources
-			// TODO: check node.js path library for splitting this
-			const checksum = path.split(`${RESOURCES_DIR}/`)[1];
+			// TODO: Should we error out when encountering entries that are
+			// not resources or we should skip those?
 
-			// TODO: Error on missing descriptors
+			// TODO: Check node.js path library for splitting this
+			// TODO: Validate this split
+			const filename = path.split(`${RESOURCES_DIR}/`)[1];
+
 			const descriptors = this.contents.resources.filter(
-				(descriptor) => descriptor.digest.split(':')[1] === checksum,
+				// TODO: What happens if this split is broken and how to break it in test?
+				(descriptor) => descriptor.digest.split(':')[1] === filename,
 			);
 
-			// TODO: Test for duplicated resources
+			if (descriptors.length === 0) {
+				// TODO: Improve error message
+				throw new Error('Unknown resource');
+			}
 
-			// TODO: skip or error out on other items that are not resources
-			// TODO: the user needs to access the resources descriptors as well
+			// TODO: Test for duplicated resources
+			const hasher = new Hasher(descriptors[0].digest, entry);
+
+			// TODO: Expose accessing resources descriptors stored in contents.json
+
 			// TODO: Define interface for this return type
 			yield {
-				resource: entry,
+				resource: hasher,
 				descriptors,
 			};
 		}
@@ -275,20 +270,45 @@ export function open<T>(
 	return new ReadableBundle(input, type);
 }
 
-class HashThrough extends stream.PassThrough {
-	hash: crypto.Hash;
+// TODO: Separately test the hasher as well
 
-	constructor(algorithm: string) {
+class Hasher extends stream.PassThrough {
+	private _digest: string;
+	private _algorithm: string;
+	private _checksum: string;
+
+	constructor(digest: string, data: stream.Readable) {
 		super();
 
+		// TODO: Validate the parse result
+		const [algorithm, checksum] = digest.split(':');
+		this._digest = digest;
+		this._algorithm = algorithm;
+		this._checksum = checksum;
+
+		// TODO: Test with unknown algorithm
 		const hash = crypto.createHash(algorithm);
 
 		this.on('data', (chunk) => hash.update(chunk));
 
-		this.hash = hash;
+		stream.pipeline(data, this, (err) => {
+			// TODO: Add a test for non-matching digest
+			if (err == null && checksum !== hash.digest('hex')) {
+				// TODO: Fix this error message
+				this.emit('error', new Error('Digest X does not match digest Y'));
+			}
+		});
 	}
 
 	get digest(): string {
-		return this.hash.digest('hex');
+		return this._digest;
+	}
+
+	get algorithm(): string {
+		return this._algorithm;
+	}
+
+	get checksum(): string {
+		return this._checksum;
 	}
 }
