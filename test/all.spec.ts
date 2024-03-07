@@ -5,6 +5,7 @@ import * as stream from 'node:stream';
 import * as tar from 'tar-stream';
 
 import * as bundle from '../lib';
+import { sha256sum } from '../lib/hasher';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -60,12 +61,24 @@ class ErroringStream extends stream.Readable {
 	}
 }
 
-function createEmptyBundleWithTestContents(contents) {
+function createTarBundle(contents) {
 	const pack = tar.pack();
 
-	const json = JSON.stringify(contents);
+	const contentsJson = JSON.stringify(contents);
 
-	pack.entry({ name: 'contents.json' }, json);
+	pack.entry({ name: 'contents.json' }, contentsJson);
+
+	const signature = {
+		digest: sha256sum(contentsJson),
+	};
+
+	pack.entry({ name: 'contents.sig' }, JSON.stringify(signature));
+
+	return pack;
+}
+
+function createEmptyTestBundle(contents) {
+	const pack = createTarBundle(contents);
 
 	pack.finalize();
 
@@ -196,6 +209,40 @@ describe('basic usage', () => {
 		}
 	});
 
+	it('read resource with bad hash', async () => {
+		const pack = createTarBundle({
+			version: '1',
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					size: 5,
+					digest: 'sha256:deadbeef',
+				},
+			],
+		});
+
+		pack.entry({ name: 'resources/deadbeef' }, 'hello');
+
+		pack.finalize();
+
+		const readable = bundle.open(pack, 'foo@1');
+
+		await readable.manifest();
+
+		try {
+			for await (const { resource } of readable.resources()) {
+				await stream.promises.finished(resource);
+			}
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Expected digest sha256:deadbeef does not match calculated digest sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+			);
+		}
+	});
+
 	it('read resources without accessing manifest', async () => {
 		const writable = bundle.create({
 			type: 'foo@1',
@@ -274,7 +321,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const readable = createEmptyBundleWithTestContents(contents);
+		const readable = createEmptyTestBundle(contents);
 
 		try {
 			await readable.manifest();
@@ -300,7 +347,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const readable = createEmptyBundleWithTestContents(contents);
+		const readable = createEmptyTestBundle(contents);
 
 		try {
 			await readable.manifest();
@@ -326,7 +373,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const readable = createEmptyBundleWithTestContents(contents);
+		const readable = createEmptyTestBundle(contents);
 
 		try {
 			await readable.manifest();
@@ -344,7 +391,7 @@ describe('basic usage', () => {
 			// resources: [...]
 		};
 
-		const readable = createEmptyBundleWithTestContents(contents);
+		const readable = createEmptyTestBundle(contents);
 
 		try {
 			await readable.manifest();
@@ -369,7 +416,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const readable = createEmptyBundleWithTestContents(contents);
+		const readable = createEmptyTestBundle(contents);
 
 		try {
 			await readable.manifest();
@@ -396,7 +443,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const readable = createEmptyBundleWithTestContents(contents);
+		const readable = createEmptyTestBundle(contents);
 
 		try {
 			await readable.manifest();
@@ -422,7 +469,7 @@ describe('basic usage', () => {
 			],
 		};
 
-		const readable = createEmptyBundleWithTestContents(contents);
+		const readable = createEmptyTestBundle(contents);
 
 		try {
 			await readable.manifest();

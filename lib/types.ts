@@ -1,5 +1,6 @@
 export const CURRENT_BUNDLE_VERSION = '1';
 export const CONTENTS_JSON = 'contents.json';
+export const CONTENTS_SIG = 'contents.sig';
 export const RESOURCES_DIR = 'resources';
 
 // TODO: Tansfer back schema to specification on Fibery
@@ -15,4 +16,9 @@ export interface Contents<T> {
 	type: string;
 	manifest: T;
 	resources: Resource[];
+}
+
+export interface Signature {
+	digest: string;
+	signature?: string;
 }

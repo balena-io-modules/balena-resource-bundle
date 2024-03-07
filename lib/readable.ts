@@ -1,13 +1,10 @@
 import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
-import Hasher from './hasher';
-import type { Contents } from './contents';
-import {
-	CONTENTS_JSON,
-	CURRENT_BUNDLE_VERSION,
-	RESOURCES_DIR,
-} from './contents';
+import { Hasher, sha256sum } from './hasher';
+import type { Contents } from './types';
+import { CONTENTS_JSON, CURRENT_BUNDLE_VERSION, RESOURCES_DIR } from './types';
+import * as signer from './signer';
 
 class ReadableBundle<T> {
 	// TODO: Mark fields as private
@@ -15,8 +12,9 @@ class ReadableBundle<T> {
 	type: string;
 	contents: Contents<T> | undefined;
 	iterator: AsyncIterator<tar.Entry, any, undefined>;
+	publicKey?: string;
 
-	constructor(input: stream.Readable, type: string) {
+	constructor(input: stream.Readable, type: string, publicKey?: string) {
 		const extract = tar.extract();
 
 		stream.pipeline(input, extract, (err) => {
@@ -29,9 +27,18 @@ class ReadableBundle<T> {
 		this.type = type;
 		this.extract = extract;
 		this.iterator = extract[Symbol.asyncIterator]();
+		this.publicKey = publicKey;
 	}
 
-	private async parseContents(entry: tar.Entry): Promise<Contents<T>> {
+	async manifest(): Promise<T> {
+		if (this.contents != null) {
+			return this.contents.manifest;
+		}
+
+		const entry: tar.Entry = (await this.iterator.next()).value;
+
+		const entrySig: tar.Entry = (await this.iterator.next()).value;
+
 		// TODO: Add a test for already parsed contents.json
 		if (this.contents != null) {
 			throw new Error(`${CONTENTS_JSON} is already parsed`);
@@ -39,9 +46,45 @@ class ReadableBundle<T> {
 
 		// TODO: Validate this is indeed contents.json and add test for this
 
+		const contentsRes = new Response(entry as any);
+		const contentsStr = await contentsRes.text();
+
+		// TODO: !!!! MAKE SURE CONTENTS.SIG IS NOT MALICIOUS !!!!
+		const contentsSigRes = new Response(entrySig as any);
+		const contentsSigStr = await contentsSigRes.text();
+		const contentsSig = JSON.parse(contentsSigStr);
+
+		// TODO: Add tests for all edge cases
+
+		const { digest, signature } = contentsSig;
+		if (digest == null) {
+			throw new Error(`${CONTENTS_JSON} integrity could not be verified`);
+		}
+
+		if (sha256sum(contentsStr) !== digest) {
+			throw new Error(`${CONTENTS_JSON} appears to be corrupted`);
+		}
+
+		if (signature != null) {
+			if (this.publicKey == null) {
+				throw new Error('Signed bundle requires a public key to be provided');
+			}
+
+			if (!signer.isValid(this.publicKey, signature, contentsStr)) {
+				throw new Error(`${CONTENTS_JSON} has invalid signature`);
+			}
+		} else {
+			if (this.publicKey != null) {
+				throw new Error('Public key provided but bundle is missing signature');
+			}
+		}
+
+		// FROM HERE IT IS SAFE TO WORK WITH contents.json
+
 		// TODO: Extract converting stream to json into separate function
 		// TODO: See what this does more specifically with the debugger
-		const contents: Contents<T> = await new Response(entry as any).json();
+		const contents: Contents<T> = JSON.parse(contentsStr);
+		this.contents = contents;
 
 		// TODO: Make sure we cover all the validation needed for contents.json
 
@@ -80,20 +123,6 @@ class ReadableBundle<T> {
 		// TODO: Validate the specific fields of resources contents here
 		// This way we will not have to re-validate when we use it
 		// TODO: Also add tests for each added validation
-
-		return contents;
-	}
-
-	async manifest(): Promise<T> {
-		if (this.contents != null) {
-			return this.contents.manifest;
-		}
-
-		const result = await this.iterator.next();
-
-		const entry = result.value;
-
-		this.contents = await this.parseContents(entry);
 
 		return this.contents.manifest;
 	}
@@ -139,7 +168,8 @@ class ReadableBundle<T> {
 				// TODO: How to handle this error?
 				// TODO: How to test this.
 				if (err) {
-					throw err;
+					// TODO: Tests work when commenting this out???
+					hasher.emit('error', err);
 				}
 			});
 
@@ -155,6 +185,7 @@ class ReadableBundle<T> {
 export function open<T>(
 	input: stream.Readable,
 	type: string,
+	publicKey?: string,
 ): ReadableBundle<T> {
-	return new ReadableBundle(input, type);
+	return new ReadableBundle(input, type, publicKey);
 }

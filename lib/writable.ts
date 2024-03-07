@@ -1,19 +1,25 @@
 import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
-import Hasher from './hasher';
-import type { Contents, Resource } from './contents';
+import { Hasher, sha256sum } from './hasher';
+import type { Contents, Resource, Signature } from './types';
 import {
 	CURRENT_BUNDLE_VERSION,
 	CONTENTS_JSON,
+	CONTENTS_SIG,
 	RESOURCES_DIR,
-} from './contents';
+} from './types';
+import * as signer from './signer';
 
-type CreateOptions<T> = Omit<Contents<T>, 'version'>;
+interface SignOptions {
+	privateKey: string;
+}
+
+type CreateOptions<T> = Omit<Contents<T>, 'version'> & { sign?: SignOptions };
 
 function toPrettyJSON(obj: any): string {
-	// Convert contents to pretty JSON with appended new line
-	return JSON.stringify(obj, null, 2) + '\n';
+	// Convert contents to pretty JSON
+	return JSON.stringify(obj, null, 2);
 }
 
 class WritableBundle<T> {
@@ -24,8 +30,19 @@ class WritableBundle<T> {
 	resourcePromises: Array<Promise<void>>;
 	addedChecksums: string[];
 
-	constructor(type: string, manifest: T, resources: Resource[]) {
+	constructor(
+		type: string,
+		manifest: T,
+		resources: Resource[],
+		signOptions?: SignOptions,
+	) {
 		const pack = tar.pack();
+
+		pack.on('error', (err) => {
+			// TODO: Why do we store packError and keep this error handler here
+			// Write a description after finding out
+			this.packError = err;
+		});
 
 		const contents: Contents<T> = {
 			version: CURRENT_BUNDLE_VERSION,
@@ -34,17 +51,21 @@ class WritableBundle<T> {
 			resources,
 		};
 
-		const json = toPrettyJSON(contents);
+		const contentsJson = toPrettyJSON(contents);
 
-		pack.entry({ name: CONTENTS_JSON }, json);
+		pack.entry({ name: CONTENTS_JSON }, contentsJson);
+
+		const contentsSig: Signature = { digest: sha256sum(contentsJson) };
+		if (signOptions != null) {
+			const { privateKey } = signOptions;
+			contentsSig.signature = signer.sign(privateKey, contentsJson);
+		}
+
+		const contentsSigJson = toPrettyJSON(contentsSig);
+
+		pack.entry({ name: CONTENTS_SIG }, contentsSigJson);
 
 		// TODO: Create the signature of contents.json and insert if afterwards
-
-		pack.on('error', (err) => {
-			// TODO: Why do we store packError and keep this error handler here
-			// Write a description after finding out
-			this.packError = err;
-		});
 
 		this.pack = pack;
 		this.resources = resources;
@@ -84,7 +105,6 @@ class WritableBundle<T> {
 				}
 			});
 
-			// TODO: Test checksum validation of data
 			stream.pipeline(data, hasher, entry, (err) => {
 				if (err) {
 					reject(err);
@@ -111,5 +131,10 @@ class WritableBundle<T> {
 }
 
 export function create<T>(options: CreateOptions<T>): WritableBundle<T> {
-	return new WritableBundle(options.type, options.manifest, options.resources);
+	return new WritableBundle(
+		options.type,
+		options.manifest,
+		options.resources,
+		options.sign,
+	);
 }

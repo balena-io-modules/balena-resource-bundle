@@ -3,6 +3,14 @@ import * as crypto from 'node:crypto';
 
 // TODO: Separately test the hasher as well - this may repeat some tests
 
+export function sha256sum(contents: string): string {
+	const hash = crypto.createHash('sha256');
+
+	hash.update(contents);
+
+	return hash.digest('hex');
+}
+
 export class Hasher extends stream.PassThrough {
 	private _digest: string;
 	private _algorithm: string;
@@ -48,5 +56,3 @@ export class Hasher extends stream.PassThrough {
 		return this._checksum;
 	}
 }
-
-export default Hasher;
