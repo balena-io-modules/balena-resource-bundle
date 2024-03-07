@@ -83,12 +83,14 @@ describe('basic usage', () => {
 				{
 					id: 'hello',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 				{
 					id: 'world',
 					size: 5,
-					digest: 'sha256:cafebabe',
+					digest:
+						'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
 				},
 			],
 		});
@@ -106,6 +108,7 @@ describe('basic usage', () => {
 		const manifest = await readableBundle.manifest();
 
 		for await (const { resource } of readableBundle.resources()) {
+			// TODO: Pipe the stream into a string a compare result
 			resource.resume();
 			// TODO: Compare descriptors
 		}
@@ -121,7 +124,8 @@ describe('basic usage', () => {
 				{
 					id: 'hello',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		});
@@ -144,7 +148,8 @@ describe('basic usage', () => {
 				{
 					id: 'hello',
 					size: 100,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		});
@@ -154,6 +159,7 @@ describe('basic usage', () => {
 			await myBundle.addResource('hello', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
+			// TODO: Can we add the resource ID in the error message?
 			expect(error.message).to.equal('Size mismatch');
 		}
 
@@ -165,7 +171,7 @@ describe('basic usage', () => {
 		}
 	});
 
-	it('read resources without accessing manifest', async () => {
+	it('add resource with bad hash', async () => {
 		const writable = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
@@ -174,6 +180,32 @@ describe('basic usage', () => {
 					id: 'hello',
 					size: 5,
 					digest: 'sha256:deadbeef',
+				},
+			],
+		});
+
+		const hello = stringStream('hello');
+
+		try {
+			await writable.addResource('hello', hello);
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Expected digest sha256:deadbeef does not match calculated digest sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+			);
+		}
+	});
+
+	it('read resources without accessing manifest', async () => {
+		const writable = bundle.create({
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					size: 5,
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		});
@@ -203,7 +235,8 @@ describe('basic usage', () => {
 				{
 					id: 'hello',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		});
@@ -235,7 +268,8 @@ describe('basic usage', () => {
 					id: 'hello',
 					path: 'hello.txt',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		};
@@ -260,7 +294,8 @@ describe('basic usage', () => {
 					id: 'hello',
 					path: 'hello.txt',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		};
@@ -285,7 +320,8 @@ describe('basic usage', () => {
 					id: 'hello',
 					path: 'hello.txt',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		};
@@ -327,7 +363,8 @@ describe('basic usage', () => {
 				{
 					// id: 'hello',
 					size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		};
@@ -353,7 +390,8 @@ describe('basic usage', () => {
 				{
 					id: 'hello',
 					// size: 5,
-					digest: 'sha256:deadbeef',
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		};
@@ -379,7 +417,7 @@ describe('basic usage', () => {
 				{
 					id: 'hello',
 					size: 5,
-					// digest: 'sha256:deadbeef',
+					// digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
 		};

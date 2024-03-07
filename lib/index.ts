@@ -57,6 +57,8 @@ class WritableBundle<T> {
 		// TODO: Create the signature of contents.json and insert if afterwards
 
 		pack.on('error', (err) => {
+			// TODO: Why do we store packError and keep this error handler here
+			// Write a description after finding out
 			this.packError = err;
 		});
 
@@ -76,34 +78,34 @@ class WritableBundle<T> {
 
 		const { size, digest } = resource;
 
-		// TODO: Validate this split here
-		const [_algorithm, checksum] = digest.split(':');
+		const hasher = new Hasher(digest);
 
 		// TODO: Create deduplication test(s) and make sure they
 
 		// TODO: Store checksums only
-		if (this.addedChecksums.includes(checksum)) {
+		if (this.addedChecksums.includes(hasher.checksum)) {
+			// TODO: FIGURE out whether to Drain the stream as well!!!
+			// FIGURE out to return a boolean if there is duplication, so that
+			// the user may close the stream himself
 			return Promise.resolve();
 		} else {
-			this.addedChecksums.push(checksum);
+			this.addedChecksums.push(hasher.checksum);
 		}
 
 		const promise = new Promise<void>((resolve, reject) => {
-			const hasher = new Hasher(digest, data);
-
-			const name = `${RESOURCES_DIR}/` + checksum;
+			const name = `${RESOURCES_DIR}/` + hasher.checksum;
 			const entry = this.pack.entry({ name, size }, function (err) {
-				if (err == null) {
-					resolve();
-				} else {
+				if (err) {
 					reject(err);
 				}
 			});
 
 			// TODO: Test checksum validation of data
-			stream.pipeline(hasher, entry, (err) => {
+			stream.pipeline(data, hasher, entry, (err) => {
 				if (err) {
 					reject(err);
+				} else {
+					resolve();
 				}
 			});
 		});
@@ -250,9 +252,17 @@ class ReadableBundle<T> {
 			}
 
 			// TODO: Test for duplicated resources
-			const hasher = new Hasher(descriptors[0].digest, entry);
+			const hasher = new Hasher(descriptors[0].digest);
 
 			// TODO: Expose accessing resources descriptors stored in contents.json
+
+			stream.pipeline(entry, hasher, (err) => {
+				// TODO: How to handle this error?
+				// TODO: How to test this.
+				if (err) {
+					throw err;
+				}
+			});
 
 			// TODO: Define interface for this return type
 			yield {
@@ -270,14 +280,14 @@ export function open<T>(
 	return new ReadableBundle(input, type);
 }
 
-// TODO: Separately test the hasher as well
+// TODO: Separately test the hasher as well - this may repeat some tests
 
 class Hasher extends stream.PassThrough {
 	private _digest: string;
 	private _algorithm: string;
 	private _checksum: string;
 
-	constructor(digest: string, data: stream.Readable) {
+	constructor(digest: string) {
 		super();
 
 		// TODO: Validate the parse result
@@ -291,11 +301,16 @@ class Hasher extends stream.PassThrough {
 
 		this.on('data', (chunk) => hash.update(chunk));
 
-		stream.pipeline(data, this, (err) => {
+		this.on('end', () => {
+			const calculatedChecksum = hash.digest('hex');
 			// TODO: Add a test for non-matching digest
-			if (err == null && checksum !== hash.digest('hex')) {
-				// TODO: Fix this error message
-				this.emit('error', new Error('Digest X does not match digest Y'));
+			if (checksum !== calculatedChecksum) {
+				this.emit(
+					'error',
+					new Error(
+						`Expected digest ${digest} does not match calculated digest ${algorithm}:${calculatedChecksum}`,
+					),
+				);
 			}
 		});
 	}

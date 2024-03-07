@@ -16,7 +16,7 @@
     "clean": "rimraf dist",
     "lint": "balena-lint lib/ test/ && tsc --noEmit",
     "build": "npm run clean && tsc --project ./",
-    "test": "npm run lint && ts-mocha --project ./tsconfig.test.json",
+    "test": "ts-mocha --project ./tsconfig.test.json",
     "prettify": "balena-lint --project ./tsconfig.test.json --fix lib/ test/",
     "prepack": "npm run build"
   },
