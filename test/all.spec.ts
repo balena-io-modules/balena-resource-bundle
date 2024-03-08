@@ -6,6 +6,7 @@ import * as tar from 'tar-stream';
 
 import * as bundle from '../lib';
 import { sha256sum } from '../lib/hasher';
+import type { Resource } from '../lib/types';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -87,6 +88,20 @@ function createEmptyTestBundle(contents) {
 	return readable;
 }
 
+async function streamToString(source: stream.Readable): Promise<string> {
+	let str = '';
+
+	return new Promise((resolve, reject) => {
+		source.on('data', (data) => {
+			str += data.toString();
+		});
+
+		source.on('end', () => resolve(str));
+
+		source.on('error', reject);
+	});
+}
+
 describe('basic usage', () => {
 	it('create bundle and then open it and read it', async () => {
 		const myBundle = bundle.create({
@@ -120,13 +135,34 @@ describe('basic usage', () => {
 
 		const manifest = await readableBundle.manifest();
 
-		for await (const { resource } of readableBundle.resources()) {
-			// TODO: Pipe the stream into a string a compare result
-			resource.resume();
-			// TODO: Compare descriptors
+		const resources = new Array<string>();
+		const allDescriptors = new Array<Resource[]>();
+		for await (const { resource, descriptors } of readableBundle.resources()) {
+			const contents = await streamToString(resource);
+			resources.push(contents);
+			allDescriptors.push(descriptors);
 		}
 
 		expect(manifest).to.eql(['hello.txt', 'world.txt']);
+		expect(resources).to.eql(['hello', 'world']);
+		expect(allDescriptors).to.eql([
+			[
+				{
+					id: 'hello',
+					size: 5,
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+				},
+			],
+			[
+				{
+					id: 'world',
+					size: 5,
+					digest:
+						'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
+				},
+			],
+		]);
 	});
 
 	it('add resource with stream throwing an error', async () => {
