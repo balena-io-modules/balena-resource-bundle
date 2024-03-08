@@ -2,11 +2,16 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 import * as stream from 'node:stream';
-import * as tar from 'tar-stream';
 
 import * as bundle from '../lib';
-import { sha256sum } from '../lib/hasher';
 import type { Resource } from '../lib/types';
+
+import {
+	stringToStream,
+	ErroringStream,
+	createTarBundle,
+	streamToString,
+} from './utils';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -38,70 +43,6 @@ const expect = chai.expect;
 }
 */
 
-function stringStream(str: string): stream.Readable {
-	// TODO: Check objectMode
-	return stream.Readable.from([str], { objectMode: false });
-}
-
-class ErroringStream extends stream.Readable {
-	shouldError: boolean = false;
-
-	constructor(private content: string) {
-		// TODO: Check objectMode
-		super({ objectMode: false });
-	}
-
-	_read() {
-		if (this.shouldError) {
-			this.emit('error', new Error('ErroringStream is throwing an error'));
-		} else {
-			this.push(this.content);
-
-			this.shouldError = true;
-		}
-	}
-}
-
-function createTarBundle(contents) {
-	const pack = tar.pack();
-
-	const contentsJson = JSON.stringify(contents);
-
-	pack.entry({ name: 'contents.json' }, contentsJson);
-
-	const signature = {
-		digest: sha256sum(contentsJson),
-	};
-
-	pack.entry({ name: 'contents.sig' }, JSON.stringify(signature));
-
-	return pack;
-}
-
-function createEmptyTestBundle(contents) {
-	const pack = createTarBundle(contents);
-
-	pack.finalize();
-
-	const readable = bundle.open(pack, 'foo@1');
-
-	return readable;
-}
-
-async function streamToString(source: stream.Readable): Promise<string> {
-	let str = '';
-
-	return new Promise((resolve, reject) => {
-		source.on('data', (data) => {
-			str += data.toString();
-		});
-
-		source.on('end', () => resolve(str));
-
-		source.on('error', reject);
-	});
-}
-
 describe('basic usage', () => {
 	it('create bundle and then open it and read it', async () => {
 		const myBundle = bundle.create({
@@ -123,10 +64,10 @@ describe('basic usage', () => {
 			],
 		});
 
-		const hello = stringStream('hello');
+		const hello = stringToStream('hello');
 		await myBundle.addResource('hello', hello);
 
-		const world = stringStream('world');
+		const world = stringToStream('world');
 		await myBundle.addResource('world', world);
 
 		await myBundle.finalize();
@@ -204,7 +145,7 @@ describe('basic usage', () => {
 		});
 
 		try {
-			const hello = stringStream('hello');
+			const hello = stringToStream('hello');
 			await myBundle.addResource('hello', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
@@ -233,7 +174,7 @@ describe('basic usage', () => {
 			],
 		});
 
-		const hello = stringStream('hello');
+		const hello = stringToStream('hello');
 
 		try {
 			await writable.addResource('hello', hello);
@@ -293,7 +234,7 @@ describe('basic usage', () => {
 			],
 		});
 
-		const hello = stringStream('hello');
+		const hello = stringToStream('hello');
 		await writable.addResource('hello', hello);
 
 		await writable.finalize();
@@ -324,7 +265,7 @@ describe('basic usage', () => {
 			],
 		});
 
-		const hello = stringStream('hello');
+		const hello = stringToStream('hello');
 		await writable.addResource('hello', hello);
 
 		await writable.finalize();
@@ -337,182 +278,6 @@ describe('basic usage', () => {
 		} catch (error) {
 			expect(error.message).to.equal(
 				'Expected type (bar@1) does not match received type (foo@1)',
-			);
-		}
-	});
-
-	it('read contents.json with missing version', async () => {
-		const contents = {
-			// version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					path: 'hello.txt',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		};
-
-		const readable = createEmptyTestBundle(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Missing "version" in contents.json');
-		}
-	});
-
-	it('read contents.json with missing type', async () => {
-		const contents = {
-			version: '1',
-			// type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					path: 'hello.txt',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		};
-
-		const readable = createEmptyTestBundle(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Missing "type" in contents.json');
-		}
-	});
-
-	it('read contents.json with missing manifest', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			// manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					path: 'hello.txt',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		};
-
-		const readable = createEmptyTestBundle(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Missing "manifest" in contents.json');
-		}
-	});
-
-	it('read contents.json with missing resources', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			// resources: [...]
-		};
-
-		const readable = createEmptyTestBundle(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Missing "resources" in contents.json');
-		}
-	});
-
-	it('read contents.json with missing resource id', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					// id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		};
-
-		const readable = createEmptyTestBundle(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal(
-				'Missing "id" in "resources" of contents.json',
-			);
-		}
-	});
-
-	it('read contents.json with missing resource size', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					// size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		};
-
-		const readable = createEmptyTestBundle(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal(
-				'Missing "size" in "resources" of contents.json',
-			);
-		}
-	});
-
-	it('read contents.json with missing resource digest', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					// digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		};
-
-		const readable = createEmptyTestBundle(contents);
-
-		try {
-			await readable.manifest();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal(
-				'Missing "digest" in "resources" of contents.json',
 			);
 		}
 	});
