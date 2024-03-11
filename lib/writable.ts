@@ -24,6 +24,7 @@ function toPrettyJSON(obj: any): string {
 
 class WritableBundle<T> {
 	// TODO: Mark fields as private
+	// TODO: Expose the `pack` member as a stream getter only
 	pack: tar.Pack;
 	packError: Error | undefined;
 	resources: Resource[];
