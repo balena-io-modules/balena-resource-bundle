@@ -6,6 +6,7 @@ import type { Contents } from './types';
 import { CONTENTS_JSON, CURRENT_BUNDLE_VERSION, RESOURCES_DIR } from './types';
 import * as signer from './signer';
 
+// TODO: Add a close method that closes the tar stream, so that we do not leak
 class ReadableBundle<T> {
 	// TODO: Mark fields as private
 	extract: tar.Extract;

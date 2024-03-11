@@ -3,7 +3,7 @@ import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 import * as stream from 'node:stream';
 
-import * as bundle from '../lib';
+import * as bundle from '../src';
 
 import { stringToStream, createTarBundle } from './utils';
 

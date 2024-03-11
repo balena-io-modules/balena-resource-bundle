@@ -5,8 +5,8 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { stringToStream } from './utils';
-import * as bundle from '../lib';
-import * as signer from '../lib/signer';
+import * as bundle from '../src';
+import * as signer from '../src/signer';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;

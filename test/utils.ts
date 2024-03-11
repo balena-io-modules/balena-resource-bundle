@@ -1,9 +1,9 @@
 import * as stream from 'node:stream';
 import * as tar from 'tar-stream';
 
-import * as bundle from '../lib';
+import * as bundle from '../src';
 
-import { sha256sum } from '../lib/hasher';
+import { sha256sum } from '../src/hasher';
 
 export function stringToStream(str: string): stream.Readable {
 	// TODO: Check objectMode

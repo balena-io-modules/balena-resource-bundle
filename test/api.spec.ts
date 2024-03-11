@@ -3,7 +3,7 @@ import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 
 import { stringToStream } from './utils';
-import * as bundle from '../lib';
+import * as bundle from '../src';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;

@@ -2,7 +2,7 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 
-import * as bundle from '../lib';
+import * as bundle from '../src';
 
 import { ErroringStream, stringToStream } from './utils';
 

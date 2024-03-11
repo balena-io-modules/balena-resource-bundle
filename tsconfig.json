@@ -15,7 +15,7 @@
     "strictNullChecks": true
   },
   "include": [
-    "lib/**/*.ts",
+    "src/**/*.ts",
     "typings/**/*.d.ts"
   ],
   "exclude": [

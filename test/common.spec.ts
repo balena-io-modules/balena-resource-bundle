@@ -2,9 +2,9 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 
-import * as bundle from '../lib';
+import * as bundle from '../src';
 
-import type { Resource } from '../lib/types';
+import type { Resource } from '../src/types';
 
 import { stringToStream, streamToString } from './utils';
 

@@ -23,9 +23,8 @@ function toPrettyJSON(obj: any): string {
 }
 
 class WritableBundle<T> {
-	// TODO: Mark fields as private
-	// TODO: Expose the `pack` member as a stream getter only
 	pack: tar.Pack;
+	// TODO: Mark fields as private
 	packError: Error | undefined;
 	resources: Resource[];
 	resourcePromises: Array<Promise<void>>;
@@ -65,8 +64,6 @@ class WritableBundle<T> {
 		const contentsSigJson = toPrettyJSON(contentsSig);
 
 		pack.entry({ name: CONTENTS_SIG }, contentsSigJson);
-
-		// TODO: Create the signature of contents.json and insert if afterwards
 
 		this.pack = pack;
 		this.resources = resources;
