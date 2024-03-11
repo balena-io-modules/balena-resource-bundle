@@ -1,7 +1,7 @@
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
-import {generateKeyPairSync} from 'node:crypto';
+import { generateKeyPairSync } from 'node:crypto';
 
 import { stringToStream } from './utils';
 import * as bundle from '../src';
@@ -165,7 +165,6 @@ describe('signing tests', () => {
 				format: 'pem',
 			},
 		});
-		
 
 		const readable = bundle.open(writable.pack, 'foo@1', publicKey);
 		try {
@@ -173,6 +172,30 @@ describe('signing tests', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('contents.json has invalid signature');
+		}
+	});
+
+	it('try signing bundle with a bad private key', async () => {
+		try {
+			bundle.create({
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+				sign: {
+					privateKey: 'BAD KEY',
+				},
+			});
+
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.contain('unsupported');
 		}
 	});
 });
