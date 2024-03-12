@@ -40,6 +40,7 @@ class WritableBundle<T> {
 
 		pack.on('error', (err) => {
 			// TODO: Why do we store packError and keep this error handler here
+			// After finishing all tests comment this out and see if it works without it
 			// Write a description after finding out
 			this.packError = err;
 		});
@@ -74,9 +75,8 @@ class WritableBundle<T> {
 	async addResource(id: string, data: stream.Readable): Promise<void> {
 		const resource = this.resources.find((res) => res.id === id);
 
-		// TODO: Add test for unknown resource ID
 		if (resource == null) {
-			throw new Error(`Unknown resource ${id}`);
+			throw new Error(`Adding unknown resource "${id}"`);
 		}
 
 		const { size, digest } = resource;

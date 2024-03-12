@@ -64,4 +64,27 @@ describe('read/write resources failures', () => {
 			expect(error.message).to.equal('Size mismatch');
 		}
 	});
+
+	it('add resource with wrong ID', async () => {
+		const myBundle = bundle.create({
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					size: 5,
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+				},
+			],
+		});
+
+		try {
+			const hello = stringToStream('hello');
+			await myBundle.addResource('world', hello);
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal('Adding unknown resource "world"');
+		}
+	});
 });

@@ -32,7 +32,6 @@ export class Hasher extends stream.PassThrough {
 
 		this.on('end', () => {
 			const calculatedChecksum = hash.digest('hex');
-			// TODO: Add a test for non-matching digest
 			if (checksum !== calculatedChecksum) {
 				this.emit(
 					'error',
