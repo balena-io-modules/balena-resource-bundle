@@ -83,8 +83,6 @@ class WritableBundle<T> {
 
 		const hasher = new Hasher(digest);
 
-		// TODO: Create deduplication test(s) and make sure they
-
 		// TODO: Store checksums only
 		if (this.addedChecksums.includes(hasher.checksum)) {
 			// TODO: FIGURE out whether to Drain the stream as well!!!
