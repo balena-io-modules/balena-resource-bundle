@@ -40,11 +40,6 @@ class ReadableBundle<T> {
 
 		const entrySig: tar.Entry = (await this.iterator.next()).value;
 
-		// TODO: Add a test for already parsed contents.json
-		if (this.contents != null) {
-			throw new Error(`${CONTENTS_JSON} is already parsed`);
-		}
-
 		// TODO: Validate this is indeed contents.json and add test for this
 
 		const contentsRes = new Response(entry as any);
