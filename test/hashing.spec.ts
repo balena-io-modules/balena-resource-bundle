@@ -69,4 +69,27 @@ describe('hash failures', () => {
 			);
 		}
 	});
+
+	it('add resource with unknown hash algorithm', async () => {
+		const writable = bundle.create({
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					size: 5,
+					digest: 'unk256:aaaaaaaa',
+				},
+			],
+		});
+
+		const hello = stringToStream('hello');
+
+		try {
+			await writable.addResource('hello', hello);
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal('Digest method not supported');
+		}
+	});
 });

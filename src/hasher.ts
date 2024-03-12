@@ -25,7 +25,6 @@ export class Hasher extends stream.PassThrough {
 		this._algorithm = algorithm;
 		this._checksum = checksum;
 
-		// TODO: Test with unknown algorithm
 		const hash = crypto.createHash(algorithm);
 
 		this.on('data', (chunk) => hash.update(chunk));
