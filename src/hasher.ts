@@ -1,8 +1,6 @@
 import * as stream from 'node:stream';
 import * as crypto from 'node:crypto';
 
-// TODO: Separately test the hasher as well - this may repeat some tests
-
 export function sha256sum(contents: string): string {
 	const hash = crypto.createHash('sha256');
 

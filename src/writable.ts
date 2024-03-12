@@ -24,11 +24,11 @@ function toPrettyJSON(obj: any): string {
 
 class WritableBundle<T> {
 	pack: tar.Pack;
-	// TODO: Mark fields as private
-	packError: Error | undefined;
-	resources: Resource[];
-	resourcePromises: Array<Promise<void>>;
-	addedChecksums: string[];
+
+	private packError: Error | undefined;
+	private resources: Resource[];
+	private resourcePromises: Array<Promise<void>>;
+	private addedChecksums: string[];
 
 	constructor(
 		type: string,
