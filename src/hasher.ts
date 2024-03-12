@@ -19,8 +19,12 @@ export class Hasher extends stream.PassThrough {
 	constructor(digest: string) {
 		super();
 
-		// TODO: Validate the parse result
 		const [algorithm, checksum] = digest.split(':');
+
+		if (checksum == null) {
+			throw new Error(`Malformed digest ${digest}`);
+		}
+
 		this._digest = digest;
 		this._algorithm = algorithm;
 		this._checksum = checksum;
