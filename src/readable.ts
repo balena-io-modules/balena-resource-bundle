@@ -16,7 +16,6 @@ class ReadableBundle<T> {
 		const extract = tar.extract();
 
 		stream.pipeline(input, extract, (err) => {
-			// TODO: Figure out more details about this callback
 			if (err) {
 				throw err;
 			}
@@ -46,8 +45,6 @@ class ReadableBundle<T> {
 		const contentsSigRes = new Response(entrySig as any);
 		const contentsSig = await contentsSigRes.json();
 
-		// TODO: Add tests for all edge cases
-
 		const { digest, signature } = contentsSig;
 		if (digest == null) {
 			throw new Error(`${CONTENTS_JSON} integrity could not be verified`);
@@ -71,14 +68,8 @@ class ReadableBundle<T> {
 			}
 		}
 
-		// FROM HERE IT IS SAFE TO WORK WITH contents.json
-
-		// TODO: Extract converting stream to json into separate function
-		// TODO: See what this does more specifically with the debugger
 		const contents: Contents<T> = JSON.parse(contentsStr);
 		this.contents = contents;
-
-		// TODO: Make sure we cover all the validation needed for contents.json
 
 		const requiredKeys = ['version', 'type', 'manifest', 'resources'];
 		for (const key of requiredKeys) {
@@ -87,8 +78,6 @@ class ReadableBundle<T> {
 			}
 		}
 
-		// TODO: Do version negotiation
-		// TODO: Add a test for version mismatch
 		if (contents.version !== CURRENT_BUNDLE_VERSION) {
 			throw new Error(
 				`Unsupported bundle version ${contents.version} (expected ${CURRENT_BUNDLE_VERSION})`,

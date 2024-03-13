@@ -34,6 +34,32 @@ describe('contents.json validation', () => {
 		}
 	});
 
+	it('read contents.json with wrong version', async () => {
+		const contents = {
+			version: '2',
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+				},
+			],
+		};
+
+		const readable = createEmptyTestBundle(contents);
+
+		try {
+			await readable.manifest();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal('Unsupported bundle version 2 (expected 1)');
+		}
+	});
+
 	it('read contents.json with missing type', async () => {
 		const contents = {
 			version: '1',
