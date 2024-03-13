@@ -6,14 +6,11 @@ import type { Contents } from './types';
 import { CONTENTS_JSON, CURRENT_BUNDLE_VERSION, RESOURCES_DIR } from './types';
 import * as signer from './signer';
 
-// TODO: Add a close method that closes the tar stream, so that we do not leak
 class ReadableBundle<T> {
-	// TODO: Mark fields as private
-	extract: tar.Extract;
-	type: string;
-	contents: Contents<T> | undefined;
-	iterator: AsyncIterator<tar.Entry, any, undefined>;
-	publicKey?: string;
+	private type: string;
+	private contents: Contents<T> | undefined;
+	private iterator: AsyncIterator<tar.Entry, any, undefined> | null;
+	private publicKey?: string;
 
 	constructor(input: stream.Readable, type: string, publicKey?: string) {
 		const extract = tar.extract();
@@ -26,7 +23,6 @@ class ReadableBundle<T> {
 		});
 
 		this.type = type;
-		this.extract = extract;
 		this.iterator = extract[Symbol.asyncIterator]();
 		this.publicKey = publicKey;
 	}
@@ -36,19 +32,19 @@ class ReadableBundle<T> {
 			return this.contents.manifest;
 		}
 
+		if (this.iterator == null) {
+			throw new Error('Iterator is already drained');
+		}
+
 		const entry: tar.Entry = (await this.iterator.next()).value;
 
 		const entrySig: tar.Entry = (await this.iterator.next()).value;
 
-		// TODO: Validate this is indeed contents.json and add test for this
-
 		const contentsRes = new Response(entry as any);
 		const contentsStr = await contentsRes.text();
 
-		// TODO: !!!! MAKE SURE CONTENTS.SIG IS NOT MALICIOUS !!!!
 		const contentsSigRes = new Response(entrySig as any);
-		const contentsSigStr = await contentsSigRes.text();
-		const contentsSig = JSON.parse(contentsSigStr);
+		const contentsSig = await contentsSigRes.json();
 
 		// TODO: Add tests for all edge cases
 
@@ -128,9 +124,14 @@ class ReadableBundle<T> {
 			throw new Error('Must call `manifest()` before `resources()`');
 		}
 
+		if (this.iterator == null) {
+			throw new Error('resources() is already called');
+		}
+
 		while (true) {
 			const result = await this.iterator.next();
 			if (result.done) {
+				this.iterator = null;
 				break;
 			}
 
