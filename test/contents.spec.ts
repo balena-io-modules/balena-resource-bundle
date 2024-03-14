@@ -56,7 +56,9 @@ describe('contents.json validation', () => {
 			await readable.manifest();
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal('Unsupported bundle version 2 (expected 1)');
+			expect(error.message).to.equal(
+				'Unsupported bundle version 2 (expected 1)',
+			);
 		}
 	});
 
@@ -206,6 +208,34 @@ describe('contents.json validation', () => {
 		} catch (error) {
 			expect(error.message).to.equal(
 				'Missing "digest" in "resources" of contents.json',
+			);
+		}
+	});
+
+	it('read contents.json with malformed resource digest', async () => {
+		const contents = {
+			version: '1',
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					path: 'hello.txt',
+					size: 5,
+					digest:
+						'sha256_2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+				},
+			],
+		};
+
+		const readable = createEmptyTestBundle(contents);
+
+		try {
+			await readable.manifest();
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Resource with malformed digest sha256_2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 			);
 		}
 	});

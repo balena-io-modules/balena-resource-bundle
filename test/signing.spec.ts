@@ -59,9 +59,9 @@ describe('signing tests', () => {
 		const hello = stringToStream('hello');
 		await writable.addResource('hello', hello);
 
-		await writable.finalize();
+		const readable = bundle.open(writable.stream, 'foo@1', PUBLIC_KEY);
 
-		const readable = bundle.open(writable.pack, 'foo@1', PUBLIC_KEY);
+		await writable.finalize();
 
 		const manifest = await readable.manifest();
 
@@ -88,9 +88,10 @@ describe('signing tests', () => {
 		const hello = stringToStream('hello');
 		await writable.addResource('hello', hello);
 
+		const readable = bundle.open(writable.stream, 'foo@1');
+
 		await writable.finalize();
 
-		const readable = bundle.open(writable.pack, 'foo@1');
 		try {
 			await readable.manifest();
 			expect.fail('Unreachable');
@@ -121,9 +122,10 @@ describe('signing tests', () => {
 		const hello = stringToStream('hello');
 		await writable.addResource('hello', hello);
 
+		const readable = bundle.open(writable.stream, 'foo@1', 'BAD KEY');
+
 		await writable.finalize();
 
-		const readable = bundle.open(writable.pack, 'foo@1', 'BAD KEY');
 		try {
 			await readable.manifest();
 			expect.fail('Unreachable');
@@ -152,8 +154,6 @@ describe('signing tests', () => {
 		const hello = stringToStream('hello');
 		await writable.addResource('hello', hello);
 
-		await writable.finalize();
-
 		const { publicKey } = generateKeyPairSync('ec', {
 			namedCurve: 'sect239k1',
 			publicKeyEncoding: {
@@ -166,7 +166,10 @@ describe('signing tests', () => {
 			},
 		});
 
-		const readable = bundle.open(writable.pack, 'foo@1', publicKey);
+		const readable = bundle.open(writable.stream, 'foo@1', publicKey);
+
+		await writable.finalize();
+
 		try {
 			await readable.manifest();
 			expect.fail('Unreachable');

@@ -5,8 +5,13 @@ import { describe } from 'mocha';
 import * as bundle from '../src';
 
 import type { Resource } from '../src/types';
+import { sha256sum } from '../src/hasher';
 
-import { stringToStream, streamToString } from './utils';
+import {
+	stringToStream,
+	streamToString,
+	repeatedStringToStream,
+} from './utils';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -57,6 +62,8 @@ describe('common usage', () => {
 			],
 		});
 
+		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
+
 		const hello = stringToStream('hello');
 		await myBundle.addResource('hello', hello);
 
@@ -64,8 +71,6 @@ describe('common usage', () => {
 		await myBundle.addResource('world', world);
 
 		await myBundle.finalize();
-
-		const readableBundle = bundle.open(myBundle.pack, 'foo@1');
 
 		const manifest = await readableBundle.manifest();
 
@@ -97,5 +102,52 @@ describe('common usage', () => {
 				},
 			],
 		]);
+	});
+
+	it('create bundle and concurently add resources', async () => {
+		const count = 50000;
+		const strings = ['hello'.repeat(count), 'world'.repeat(count)];
+
+		const myBundle = bundle.create({
+			type: 'foo@1',
+			manifest: ['hello.txt', 'world.txt'],
+			resources: [
+				{
+					id: 'hello',
+					size: strings[0].length,
+					digest: 'sha256:' + sha256sum(strings[0]),
+				},
+				{
+					id: 'world',
+					size: strings[1].length,
+					digest: 'sha256:' + sha256sum(strings[1]),
+				},
+			],
+		});
+
+		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
+
+		[
+			['hello', repeatedStringToStream('hello', count)] as const,
+			['world', repeatedStringToStream('world', count)] as const,
+		].forEach(async ([id, strStream]) => {
+			/* eslint-disable @typescript-eslint/no-floating-promises */
+			myBundle.addResource(id, strStream);
+		});
+
+		await myBundle.finalize();
+
+		const manifest = await readableBundle.manifest();
+
+		const resources = new Array<string>();
+		const allDescriptors = new Array<Resource[]>();
+		for await (const { resource, descriptors } of readableBundle.resources()) {
+			const contents = await streamToString(resource);
+			resources.push(contents);
+			allDescriptors.push(descriptors);
+		}
+
+		expect(manifest).to.eql(['hello.txt', 'world.txt']);
+		expect(resources).to.eql(strings);
 	});
 });

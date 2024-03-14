@@ -54,9 +54,9 @@ describe('deduplication tests', () => {
 		const world2 = stringToStream('world');
 		await myBundle.addResource('world 2', world2);
 
-		await myBundle.finalize();
+		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
 
-		const readableBundle = bundle.open(myBundle.pack, 'foo@1');
+		await myBundle.finalize();
 
 		const manifest = await readableBundle.manifest();
 

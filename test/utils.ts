@@ -5,16 +5,10 @@ import * as bundle from '../src';
 
 import { sha256sum } from '../src/hasher';
 
-export function stringToStream(str: string): stream.Readable {
-	// TODO: Check objectMode
-	return stream.Readable.from([str], { objectMode: false });
-}
-
 export class ErroringStream extends stream.Readable {
 	shouldError: boolean = false;
 
 	constructor(private content: string) {
-		// TODO: Check objectMode
 		super({ objectMode: false });
 	}
 
@@ -67,4 +61,20 @@ export async function streamToString(source: stream.Readable): Promise<string> {
 
 		source.on('error', reject);
 	});
+}
+
+export function stringToStream(str: string): stream.Readable {
+	return stream.Readable.from([str], { objectMode: false });
+}
+
+export function repeatedStringToStream(
+	str: string,
+	count: number,
+): stream.Readable {
+	function* generateRepeat() {
+		for (let i = 0; i < count; i++) {
+			yield str;
+		}
+	}
+	return stream.Readable.from(generateRepeat(), { objectMode: false });
 }

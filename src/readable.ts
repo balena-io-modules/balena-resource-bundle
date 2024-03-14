@@ -7,10 +7,10 @@ import { CONTENTS_JSON, CURRENT_BUNDLE_VERSION, RESOURCES_DIR } from './types';
 import * as signer from './signer';
 
 class ReadableBundle<T> {
-	private type: string;
+	readonly type: string;
+	readonly publicKey?: string;
 	private contents: Contents<T> | undefined;
 	private iterator: AsyncIterator<tar.Entry, any, undefined> | null;
-	private publicKey?: string;
 
 	constructor(input: stream.Readable, type: string, publicKey?: string) {
 		const extract = tar.extract();
@@ -26,7 +26,7 @@ class ReadableBundle<T> {
 		this.publicKey = publicKey;
 	}
 
-	async manifest(): Promise<T> {
+	public async manifest(): Promise<T> {
 		if (this.contents != null) {
 			return this.contents.manifest;
 		}
@@ -99,16 +99,16 @@ class ReadableBundle<T> {
 					);
 				}
 			}
-		}
 
-		// TODO: Validate the specific fields of resources contents here
-		// This way we will not have to re-validate when we use it
-		// TODO: Also add tests for each added validation
+			if (resource.digest.includes(':') === false) {
+				throw new Error(`Resource with malformed digest ${resource.digest}`);
+			}
+		}
 
 		return this.contents.manifest;
 	}
 
-	async *resources() {
+	public async *resources() {
 		if (this.contents == null) {
 			throw new Error('Must call `manifest()` before `resources()`');
 		}

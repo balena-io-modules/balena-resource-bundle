@@ -23,11 +23,10 @@ function toPrettyJSON(obj: any): string {
 }
 
 class WritableBundle<T> {
-	pack: tar.Pack;
-
-	private packError: Error | undefined;
+	private pack: tar.Pack | null;
 	private resources: Resource[];
-	private resourcePromises: Array<Promise<void>>;
+	private packError: Error | undefined;
+	private lastResourcePromise: Promise<void> | undefined;
 	private addedChecksums: string[];
 
 	constructor(
@@ -68,11 +67,13 @@ class WritableBundle<T> {
 
 		this.pack = pack;
 		this.resources = resources;
-		this.resourcePromises = [];
 		this.addedChecksums = [];
 	}
 
-	async addResource(id: string, data: stream.Readable): Promise<void> {
+	public async addResource(
+		id: string,
+		data: stream.Readable,
+	): Promise<boolean> {
 		const resource = this.resources.find((res) => res.id === id);
 
 		if (resource == null) {
@@ -84,15 +85,20 @@ class WritableBundle<T> {
 		const hasher = new Hasher(digest);
 
 		if (this.addedChecksums.includes(hasher.checksum)) {
-			// TODO: FIGURE out whether to Drain the stream as well!!!
-			// FIGURE out to return a boolean if there is duplication, so that
-			// the user may close the stream himself
-			return Promise.resolve();
+			// We have not consumed the stream here - it is up to him to do that.
+			return false;
 		} else {
 			this.addedChecksums.push(hasher.checksum);
 		}
 
+		// Manually enforce one stream at a time in the tar stream
+		await this.lastResourcePromise;
+
 		const promise = new Promise<void>((resolve, reject) => {
+			if (this.pack == null) {
+				throw new Error('This bundle has already been finalized');
+			}
+
 			const name = `${RESOURCES_DIR}/` + hasher.checksum;
 			const entry = this.pack.entry({ name, size }, function (err) {
 				if (err) {
@@ -109,19 +115,32 @@ class WritableBundle<T> {
 			});
 		});
 
-		this.resourcePromises.push(promise);
+		this.lastResourcePromise = promise;
 
-		return promise;
+		return promise.then(() => true);
 	}
 
-	async finalize() {
+	public async finalize() {
+		if (this.pack == null) {
+			throw new Error('This bundle has already been finalized');
+		}
+
+		await this.lastResourcePromise;
+
 		this.pack.finalize();
 
 		if (this.packError != null) {
 			throw this.packError;
 		}
 
-		await Promise.all(this.resourcePromises);
+		this.pack = null;
+	}
+
+	public get stream(): stream.Readable {
+		if (this.pack == null) {
+			throw new Error('This bundle has already been finalized');
+		}
+		return this.pack;
 	}
 }
 
