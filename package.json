@@ -1,7 +1,7 @@
 {
   "name": "@balena/resource-bundle",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Balena Resource Bundle SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -45,5 +45,8 @@
   },
   "dependencies": {
     "tar-stream": "^3.1.7"
+  },
+  "versionist": {
+    "publishedAt": "2024-03-14T09:43:14.226Z"
   }
 }

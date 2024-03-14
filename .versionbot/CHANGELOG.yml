@@ -1,0 +1,14 @@
+- commits:
+    - subject: Enable Flowzone
+      hash: 397d0482d3ca9426d006ada990f31de3b5842b0a
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.0.2
+  title: ""
+  date: 2024-03-14T09:43:14.193Z
