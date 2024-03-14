@@ -16,7 +16,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "lint": "balena-lint src/ test/ && tsc --noEmit",
-    "build": "npm run clean && tsc --project ./",
+    "build": "npm run clean && npm run lint && tsc --project ./",
     "test": "ts-mocha --project ./tsconfig.test.json",
     "prettify": "balena-lint --project ./tsconfig.test.json --fix src/ test/",
     "prepack": "npm run build"
