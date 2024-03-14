@@ -131,7 +131,7 @@ describe('common usage', () => {
 			['hello', repeatedStringToStream('hello', count)] as const,
 			['world', repeatedStringToStream('world', count)] as const,
 		].forEach(async ([id, strStream]) => {
-			/* eslint-disable @typescript-eslint/no-floating-promises */
+			// eslint-disable-next-line @typescript-eslint/no-floating-promises
 			myBundle.addResource(id, strStream);
 		});
 

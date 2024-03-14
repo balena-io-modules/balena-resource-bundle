@@ -1,5 +1,6 @@
 {
   "name": "@balena/resource-bundle",
+  "private": true,
   "version": "0.0.1",
   "description": "Balena Resource Bundle SDK",
   "main": "dist/index.js",

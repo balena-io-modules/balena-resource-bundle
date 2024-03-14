@@ -38,9 +38,6 @@ class WritableBundle<T> {
 		const pack = tar.pack();
 
 		pack.on('error', (err) => {
-			// TODO: Why do we store packError and keep this error handler here
-			// After finishing all tests comment this out and see if it works without it
-			// Write a description after finding out
 			this.packError = err;
 		});
 
@@ -117,7 +114,9 @@ class WritableBundle<T> {
 
 		this.lastResourcePromise = promise;
 
-		return promise.then(() => true);
+		await promise;
+
+		return true;
 	}
 
 	public async finalize() {

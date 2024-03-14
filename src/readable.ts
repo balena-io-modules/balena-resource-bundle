@@ -128,29 +128,27 @@ class ReadableBundle<T> {
 
 			const path = entry.header.name;
 
-			// TODO: Validate this split
 			const filename = path.split(`${RESOURCES_DIR}/`)[1];
+			if (filename == null) {
+				throw new Error(`Unexpected file in read bundle ${path}`);
+			}
 
 			const descriptors = this.contents.resources.filter(
-				// TODO: What happens if this split is broken and how to break it in test?
 				(descriptor) => descriptor.digest.split(':')[1] === filename,
 			);
 
 			if (descriptors.length === 0) {
-				// TODO: Improve error message
-				throw new Error('Unknown resource');
+				throw new Error(`Unknown resource ${path}`);
 			}
 
 			const hasher = new Hasher(descriptors[0].digest);
 
 			stream.pipeline(entry, hasher, (err) => {
 				if (err) {
-					// TODO: Tests work when commenting this out???
 					hasher.emit('error', err);
 				}
 			});
 
-			// TODO: Define interface for this return type
 			yield {
 				resource: hasher,
 				descriptors,
