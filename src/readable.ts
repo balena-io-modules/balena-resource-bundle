@@ -128,10 +128,6 @@ class ReadableBundle<T> {
 
 			const path = entry.header.name;
 
-			// TODO: Should we error out when encountering entries that are
-			// not resources or we should skip those?
-
-			// TODO: Check node.js path library for splitting this
 			// TODO: Validate this split
 			const filename = path.split(`${RESOURCES_DIR}/`)[1];
 
@@ -145,14 +141,9 @@ class ReadableBundle<T> {
 				throw new Error('Unknown resource');
 			}
 
-			// TODO: Test for duplicated resources
 			const hasher = new Hasher(descriptors[0].digest);
 
-			// TODO: Expose accessing resources descriptors stored in contents.json
-
 			stream.pipeline(entry, hasher, (err) => {
-				// TODO: How to handle this error?
-				// TODO: How to test this.
 				if (err) {
 					// TODO: Tests work when commenting this out???
 					hasher.emit('error', err);

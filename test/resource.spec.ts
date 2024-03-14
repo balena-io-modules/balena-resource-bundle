@@ -53,7 +53,6 @@ describe('read/write resources failures', () => {
 			await myBundle.addResource('hello', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
-			// TODO: Can we add the resource ID in the error message?
 			expect(error.message).to.equal('Size mismatch');
 		}
 
