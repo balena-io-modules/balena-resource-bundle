@@ -28,7 +28,6 @@ class WritableBundle<T> {
 	private packError: Error | undefined;
 	private lastResourcePromise: Promise<void> | undefined;
 	private addedChecksums: string[];
-	private addedResources: string[];
 
 	constructor(
 		type: string,
@@ -66,7 +65,6 @@ class WritableBundle<T> {
 		this.pack = pack;
 		this.resources = resources;
 		this.addedChecksums = [];
-		this.addedResources = [];
 	}
 
 	public async addResource(
@@ -118,8 +116,6 @@ class WritableBundle<T> {
 
 		await promise;
 
-		this.addedResources.push(id);
-
 		return true;
 	}
 
@@ -129,13 +125,6 @@ class WritableBundle<T> {
 		}
 
 		await this.lastResourcePromise;
-
-		for (const { id } of this.resources) {
-			const index = this.addedResources.indexOf(id);
-			if (index === -1) {
-				throw new Error(`Resource "${id}" was not added`);
-			}
-		}
 
 		this.pack.finalize();
 
