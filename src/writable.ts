@@ -28,6 +28,7 @@ class WritableBundle<T> {
 	private packError: Error | undefined;
 	private lastResourcePromise: Promise<void> | undefined;
 	private addedChecksums: string[];
+	private addedResources: Set<string>;
 
 	constructor(
 		type: string,
@@ -65,6 +66,7 @@ class WritableBundle<T> {
 		this.pack = pack;
 		this.resources = resources;
 		this.addedChecksums = [];
+		this.addedResources = new Set();
 	}
 
 	public async addResource(
@@ -83,6 +85,7 @@ class WritableBundle<T> {
 
 		if (this.addedChecksums.includes(hasher.checksum)) {
 			// We have not consumed the stream here - it is up to him to do that.
+			this.addedResources.add(id);
 			return false;
 		} else {
 			this.addedChecksums.push(hasher.checksum);
@@ -114,9 +117,20 @@ class WritableBundle<T> {
 
 		this.lastResourcePromise = promise;
 
-		await promise;
+		this.addedResources.add(id);
+
+		try {
+			await promise;
+		} catch (err) {
+			this.addedResources.delete(id);
+			throw err;
+		}
 
 		return true;
+	}
+
+	private get pendingResources(): Resource[] {
+		return this.resources.filter(({ id }) => !this.addedResources.has(id));
 	}
 
 	public async finalize() {
@@ -125,6 +139,14 @@ class WritableBundle<T> {
 		}
 
 		await this.lastResourcePromise;
+
+		const pendingResources = this.pendingResources;
+
+		if (pendingResources.length > 0) {
+			throw new Error(
+				`Missing resources: ${pendingResources.map(({ id }) => id).join(', ')}`,
+			);
+		}
 
 		this.pack.finalize();
 
