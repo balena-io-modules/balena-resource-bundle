@@ -26,8 +26,9 @@ class WritableBundle<T> {
 	private pack: tar.Pack | null;
 	private resources: Resource[];
 	private packError: Error | undefined;
-	private lastResourcePromise: Promise<void> | undefined;
 	private addedChecksums: string[];
+	private inProgress: boolean;
+	private addedResources: Set<string>;
 
 	constructor(
 		type: string,
@@ -65,12 +66,20 @@ class WritableBundle<T> {
 		this.pack = pack;
 		this.resources = resources;
 		this.addedChecksums = [];
+		this.addedResources = new Set();
+		this.inProgress = false;
 	}
 
 	public async addResource(
 		id: string,
 		data: stream.Readable,
 	): Promise<boolean> {
+		if (this.inProgress) {
+			throw new Error('Current resource stream is still in progress');
+		}
+
+		this.inProgress = true;
+
 		const resource = this.resources.find((res) => res.id === id);
 
 		if (resource == null) {
@@ -83,13 +92,12 @@ class WritableBundle<T> {
 
 		if (this.addedChecksums.includes(hasher.checksum)) {
 			// We have not consumed the stream here - it is up to him to do that.
+			this.addedResources.add(id);
+			this.inProgress = false;
 			return false;
 		} else {
 			this.addedChecksums.push(hasher.checksum);
 		}
-
-		// Manually enforce one stream at a time in the tar stream
-		await this.lastResourcePromise;
 
 		const promise = new Promise<void>((resolve, reject) => {
 			if (this.pack == null) {
@@ -104,6 +112,8 @@ class WritableBundle<T> {
 			});
 
 			stream.pipeline(data, hasher, entry, (err) => {
+				this.inProgress = false;
+
 				if (err) {
 					reject(err);
 				} else {
@@ -112,9 +122,14 @@ class WritableBundle<T> {
 			});
 		});
 
-		this.lastResourcePromise = promise;
+		this.addedResources.add(id);
 
-		await promise;
+		try {
+			await promise;
+		} catch(err) {
+			this.addedResources.delete(id);
+			throw err;
+		}
 
 		return true;
 	}
@@ -124,7 +139,17 @@ class WritableBundle<T> {
 			throw new Error('This bundle has already been finalized');
 		}
 
-		await this.lastResourcePromise;
+		if (this.inProgress) {
+			throw new Error(
+				'Cannot finalize resource stream while still in progress',
+			);
+		}
+
+		for (const { id } of this.resources) {
+			if (!this.addedResources.has(id)) {
+				throw new Error(`Resource "${id}" was not added`);
+			}
+		}
 
 		this.pack.finalize();
 
