@@ -27,7 +27,6 @@ class WritableBundle<T> {
 	private resources: Resource[];
 	private packError: Error | undefined;
 	private lastResourcePromise: Promise<void> | undefined;
-	private addedChecksums: string[];
 	private addedResources: Set<string>;
 
 	constructor(
@@ -36,6 +35,15 @@ class WritableBundle<T> {
 		resources: Resource[],
 		signOptions?: SignOptions,
 	) {
+		const resourceIds = resources.map(({ id }) => id);
+		const uniqueIds = new Set(resourceIds);
+		if (resourceIds.length !== uniqueIds.size) {
+			const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
+			throw new Error(
+				`Duplicate resource IDs are not allowed: ${duplicateIds}`,
+			);
+		}
+
 		const pack = tar.pack();
 
 		pack.on('error', (err) => {
@@ -65,14 +73,10 @@ class WritableBundle<T> {
 
 		this.pack = pack;
 		this.resources = resources;
-		this.addedChecksums = [];
 		this.addedResources = new Set();
 	}
 
-	public async addResource(
-		id: string,
-		data: stream.Readable,
-	): Promise<boolean> {
+	public async addResource(id: string, data: stream.Readable) {
 		const resource = this.resources.find((res) => res.id === id);
 
 		if (resource == null) {
@@ -83,14 +87,6 @@ class WritableBundle<T> {
 
 		const hasher = new Hasher(digest);
 
-		if (this.addedChecksums.includes(hasher.checksum)) {
-			// We have not consumed the stream here - it is up to him to do that.
-			this.addedResources.add(id);
-			return false;
-		} else {
-			this.addedChecksums.push(hasher.checksum);
-		}
-
 		// Manually enforce one stream at a time in the tar stream
 		await this.lastResourcePromise;
 
@@ -99,7 +95,11 @@ class WritableBundle<T> {
 				throw new Error('This bundle has already been finalized');
 			}
 
-			const name = `${RESOURCES_DIR}/` + hasher.checksum;
+			if (this.addedResources.has(id)) {
+				throw new Error(`Resource "${id}" is already added`);
+			}
+
+			const name = `${RESOURCES_DIR}/` + sha256sum(id);
 			const entry = this.pack.entry({ name, size }, function (err) {
 				if (err) {
 					reject(err);
@@ -125,8 +125,6 @@ class WritableBundle<T> {
 			this.addedResources.delete(id);
 			throw err;
 		}
-
-		return true;
 	}
 
 	private get pendingResources(): Resource[] {
