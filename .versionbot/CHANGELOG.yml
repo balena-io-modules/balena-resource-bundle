@@ -1,4 +1,28 @@
 - commits:
+    - subject: Make sure all resources have been added on finalize()
+      hash: daabafaa97cd499259245a20423efb8bdc0fbe72
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+    - subject: Revert 270789a which was committed to master by mistake
+      hash: b6e10488e31bf1b205b39ac4eb7e046e4ea8154c
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.0.3
+  title: ""
+  date: 2024-03-27T08:21:01.446Z
+- commits:
     - subject: Enable Flowzone
       hash: 397d0482d3ca9426d006ada990f31de3b5842b0a
       body: ""
