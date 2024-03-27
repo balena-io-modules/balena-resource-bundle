@@ -134,14 +134,20 @@ class ReadableBundle<T> {
 			}
 
 			const descriptors = this.contents.resources.filter(
-				(descriptor) => descriptor.digest.split(':')[1] === filename,
+				(desc) => sha256sum(desc.id) === filename,
 			);
 
 			if (descriptors.length === 0) {
 				throw new Error(`Unknown resource ${path}`);
 			}
 
-			const hasher = new Hasher(descriptors[0].digest);
+			const descriptor = descriptors[0];
+
+			if (descriptors.length > 1) {
+				throw new Error(`Resources with duplicated ID ${descriptor.id}`);
+			}
+
+			const hasher = new Hasher(descriptor.digest);
 
 			stream.pipeline(entry, hasher, (err) => {
 				if (err) {
@@ -151,7 +157,7 @@ class ReadableBundle<T> {
 
 			yield {
 				resource: hasher,
-				descriptors,
+				descriptor,
 			};
 		}
 	}

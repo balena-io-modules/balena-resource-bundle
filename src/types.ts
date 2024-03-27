@@ -6,6 +6,7 @@ export const RESOURCES_DIR = 'resources';
 // TODO: Tansfer back schema to specification on Fibery
 export interface Resource {
 	id: string;
+	aliases?: string[];
 	size: number;
 	digest: string;
 	type?: string;
