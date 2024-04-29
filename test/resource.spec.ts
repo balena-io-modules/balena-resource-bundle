@@ -87,6 +87,32 @@ describe('read/write resources failures', () => {
 		}
 	});
 
+	it('add resource which was already added', async () => {
+		const myBundle = bundle.create({
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello',
+					size: 5,
+					digest:
+						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+				},
+			],
+		});
+
+		const hello = stringToStream('hello');
+		await myBundle.addResource('hello', hello);
+
+		try {
+			const hello2 = stringToStream('hello');
+			await myBundle.addResource('hello', hello2);
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal('Resource "hello" is already added');
+		}
+	});
+
 	it('finalize without all resources added', async () => {
 		const myBundle = bundle.create({
 			type: 'foo@1',
@@ -115,6 +141,35 @@ describe('read/write resources failures', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing resources: world');
+		}
+	});
+
+	it('create bundle with duplicated resource IDs', async () => {
+		try {
+			bundle.create({
+				type: 'foo@1',
+				manifest: ['hello.txt', 'world.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
+					},
+				],
+			});
+
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Duplicate resource IDs are not allowed: hello',
+			);
 		}
 	});
 });

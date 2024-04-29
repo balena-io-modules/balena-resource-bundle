@@ -75,32 +75,28 @@ describe('common usage', () => {
 		const manifest = await readableBundle.manifest();
 
 		const resources = new Array<string>();
-		const allDescriptors = new Array<Resource[]>();
-		for await (const { resource, descriptors } of readableBundle.resources()) {
+		const allDescriptors = new Array<Resource>();
+		for await (const { resource, descriptor } of readableBundle.resources()) {
 			const contents = await streamToString(resource);
 			resources.push(contents);
-			allDescriptors.push(descriptors);
+			allDescriptors.push(descriptor);
 		}
 
 		expect(manifest).to.eql(['hello.txt', 'world.txt']);
 		expect(resources).to.eql(['hello', 'world']);
 		expect(allDescriptors).to.eql([
-			[
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-			[
-				{
-					id: 'world',
-					size: 5,
-					digest:
-						'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
-				},
-			],
+			{
+				id: 'hello',
+				size: 5,
+				digest:
+					'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+			},
+			{
+				id: 'world',
+				size: 5,
+				digest:
+					'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
+			},
 		]);
 	});
 
@@ -140,14 +136,28 @@ describe('common usage', () => {
 		const manifest = await readableBundle.manifest();
 
 		const resources = new Array<string>();
-		const allDescriptors = new Array<Resource[]>();
-		for await (const { resource, descriptors } of readableBundle.resources()) {
+		const allDescriptors = new Array<Resource>();
+		for await (const { resource, descriptor } of readableBundle.resources()) {
 			const contents = await streamToString(resource);
 			resources.push(contents);
-			allDescriptors.push(descriptors);
+			allDescriptors.push(descriptor);
 		}
 
 		expect(manifest).to.eql(['hello.txt', 'world.txt']);
 		expect(resources).to.eql(strings);
+		expect(allDescriptors).to.eql([
+			{
+				id: 'hello',
+				size: 250000,
+				digest:
+					'sha256:3c0c935cd2e22bf98bfa3e53d5854c607b5e603528f9e107d231f3b00e6a792d',
+			},
+			{
+				id: 'world',
+				size: 250000,
+				digest:
+					'sha256:98d4b55cb3f642fc5867b797e51d88e53b0526e75ee7006ed4bfe0397e4636bf',
+			},
+		]);
 	});
 });
