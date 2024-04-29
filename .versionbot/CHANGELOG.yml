@@ -1,4 +1,19 @@
 - commits:
+    - subject: Do not deduplicate resources in addResource()
+      hash: 29c8d9c9760e0fed0611e795fa7c2dc41623f523
+      body: |
+        Instead introduce an `aliases` key in resource descriptors.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.0.4
+  title: ""
+  date: 2024-04-29T12:59:13.162Z
+- commits:
     - subject: Make sure all resources have been added on finalize()
       hash: daabafaa97cd499259245a20423efb8bdc0fbe72
       body: ""
