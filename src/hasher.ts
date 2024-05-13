@@ -17,6 +17,11 @@ export class Hasher extends stream.PassThrough {
 	constructor(digest: string) {
 		super();
 
+		// The streams pipeline API attaches a lot of listeners and that may trigger
+		// a false warning about possible memory leak, so we increase the maximum
+		// allowed listeners count to silence it. 100 is a reasonable number.
+		this.setMaxListeners(100);
+
 		const [algorithm, checksum] = digest.split(':');
 
 		if (checksum == null) {
