@@ -1,4 +1,36 @@
 - commits:
+    - subject: Fix Node.js runtime exiting when manifest size is too big
+      hash: 79b414e129eeed35a6eb5ed9a0bf252e0f46be8b
+      body: >
+        When reading a resource bundle with big manifest file, we did not attach
+
+        immediately the tar entry stream for contents.json, but instead iterated
+
+        next to the contents.sig tar entry. For bigger contents.json files that
+
+        would drain only the start of the contents.json file, but not the rest
+        of
+
+        it, which in turn caused the Node.js runtime to exit immediately with
+
+        exit status 13.
+
+
+        Now we properly order iterating and reading the contents of the
+        contents.json
+
+        and contents.sig files.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.0.6
+  title: ""
+  date: 2024-05-13T14:58:17.613Z
+- commits:
     - subject: Increase Hasher maximum allowed listeners
       hash: 39c3f038617c0e6aa44ef0c511387b784341d53b
       body: >
