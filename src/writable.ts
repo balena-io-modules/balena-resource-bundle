@@ -17,12 +17,12 @@ interface SignOptions {
 
 type CreateOptions<T> = Omit<Contents<T>, 'version'> & { sign?: SignOptions };
 
-function toPrettyJSON(obj: any): string {
+export function toPrettyJSON(obj: any): string {
 	// Convert contents to pretty JSON
 	return JSON.stringify(obj, null, 2);
 }
 
-class WritableBundle<T> {
+export class WritableBundle<T> {
 	private pack: tar.Pack | null;
 	private resources: Resource[];
 	private packError: Error | undefined;
