@@ -37,10 +37,10 @@ class ReadableBundle<T> {
 
 		const entry: tar.Entry = (await this.iterator.next()).value;
 
-		const entrySig: tar.Entry = (await this.iterator.next()).value;
-
 		const contentsRes = new Response(entry as any);
 		const contentsStr = await contentsRes.text();
+
+		const entrySig: tar.Entry = (await this.iterator.next()).value;
 
 		const contentsSigRes = new Response(entrySig as any);
 		const contentsSig = await contentsSigRes.json();
