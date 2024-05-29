@@ -1,4 +1,16 @@
 - commits:
+    - subject: Make NPM package public
+      hash: 9a82a5fe4a3d586b39c556f8c470cb798ded25c6
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: dfunckt
+      nested: []
+  version: 0.0.7
+  title: ""
+  date: 2024-05-29T07:48:03.034Z
+- commits:
     - subject: Fix Node.js runtime exiting when manifest size is too big
       hash: 79b414e129eeed35a6eb5ed9a0bf252e0f46be8b
       body: >
