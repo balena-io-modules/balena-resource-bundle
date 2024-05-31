@@ -12,7 +12,7 @@ const expect = chai.expect;
 
 describe('read/write resources failures', () => {
 	it('add resource with stream throwing an error', async () => {
-		const myBundle = bundle.create({
+		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -37,7 +37,7 @@ describe('read/write resources failures', () => {
 	});
 
 	it('add resource with wrong size', async () => {
-		const myBundle = bundle.create({
+		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -63,7 +63,7 @@ describe('read/write resources failures', () => {
 	});
 
 	it('add resource with wrong ID', async () => {
-		const myBundle = bundle.create({
+		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -87,7 +87,7 @@ describe('read/write resources failures', () => {
 	});
 
 	it('add resource which was already added', async () => {
-		const myBundle = bundle.create({
+		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -114,7 +114,7 @@ describe('read/write resources failures', () => {
 	});
 
 	it('finalize without all resources added', async () => {
-		const myBundle = bundle.create({
+		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt', 'world.txt'],
 			resources: [
@@ -146,7 +146,7 @@ describe('read/write resources failures', () => {
 
 	it('create bundle with duplicated resource IDs', async () => {
 		try {
-			bundle.create({
+			new bundle.WritableBundle({
 				type: 'foo@1',
 				manifest: ['hello.txt', 'world.txt'],
 				resources: [

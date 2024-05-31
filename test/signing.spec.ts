@@ -40,7 +40,7 @@ MFIwEAYHKoZIzj0CAQYFK4EEAAMDPgAEH2OuTWjC0f3Qyh4kX2rOLqjLgYOk8Agw
 
 describe('signing tests', () => {
 	it('create a signed bundle and open it with public key', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -67,7 +67,7 @@ describe('signing tests', () => {
 	});
 
 	it('create a signed bundle but open it without a public key', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -100,7 +100,7 @@ describe('signing tests', () => {
 	});
 
 	it('create a signed bundle but open it with unsupported public key', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -131,7 +131,7 @@ describe('signing tests', () => {
 	});
 
 	it('create a signed bundle but open it with wrong public key', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -175,7 +175,7 @@ describe('signing tests', () => {
 
 	it('try signing bundle with a bad private key', async () => {
 		try {
-			bundle.create({
+			new bundle.WritableBundle({
 				type: 'foo@1',
 				manifest: ['hello.txt'],
 				resources: [

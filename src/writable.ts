@@ -10,17 +10,15 @@ import {
 	RESOURCES_DIR,
 } from './types';
 import * as signer from './signer';
+import { toPrettyJSON } from './utils';
 
-interface SignOptions {
+export interface SignOptions {
 	privateKey: string;
 }
 
-type CreateOptions<T> = Omit<Contents<T>, 'version'> & { sign?: SignOptions };
-
-function toPrettyJSON(obj: any): string {
-	// Convert contents to pretty JSON
-	return JSON.stringify(obj, null, 2);
-}
+export type WritableBundleOptions<T> = Omit<Contents<T>, 'version'> & {
+	sign?: SignOptions;
+};
 
 export class WritableBundle<T> {
 	private pack: tar.Pack;
@@ -28,13 +26,8 @@ export class WritableBundle<T> {
 	private packError: Error | undefined;
 	private addedResources: Set<string>;
 
-	constructor(
-		type: string,
-		manifest: T,
-		resources: Resource[],
-		signOptions?: SignOptions,
-	) {
-		const resourceIds = resources.map(({ id }) => id);
+	public constructor(options: WritableBundleOptions<T>) {
+		const resourceIds = options.resources.map(({ id }) => id);
 		const uniqueIds = new Set(resourceIds);
 		if (resourceIds.length !== uniqueIds.size) {
 			const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
@@ -51,9 +44,9 @@ export class WritableBundle<T> {
 
 		const contents: Contents<T> = {
 			version: CURRENT_BUNDLE_VERSION,
-			type,
-			manifest,
-			resources,
+			type: options.type,
+			manifest: options.manifest,
+			resources: options.resources,
 		};
 
 		const contentsJson = toPrettyJSON(contents);
@@ -61,9 +54,11 @@ export class WritableBundle<T> {
 		pack.entry({ name: CONTENTS_JSON }, contentsJson);
 
 		const contentsSig: Signature = { digest: sha256sum(contentsJson) };
-		if (signOptions != null) {
-			const { privateKey } = signOptions;
-			contentsSig.signature = signer.sign(privateKey, contentsJson);
+		if (options.sign != null) {
+			contentsSig.signature = signer.sign(
+				options.sign.privateKey,
+				contentsJson,
+			);
 		}
 
 		const contentsSigJson = toPrettyJSON(contentsSig);
@@ -71,7 +66,7 @@ export class WritableBundle<T> {
 		pack.entry({ name: CONTENTS_SIG }, contentsSigJson);
 
 		this.pack = pack;
-		this.resources = resources;
+		this.resources = options.resources;
 		this.addedResources = new Set();
 	}
 
@@ -123,11 +118,20 @@ export class WritableBundle<T> {
 	}
 }
 
-export function create<T>(options: CreateOptions<T>): WritableBundle<T> {
-	return new WritableBundle(
-		options.type,
-		options.manifest,
-		options.resources,
-		options.sign,
-	);
+export interface ResourceData {
+	id: string;
+	data: stream.Readable;
+}
+
+export type CreateOptions<T> = WritableBundleOptions<T> & {
+	resourceData: ResourceData[];
+};
+
+export function create<T>(options: CreateOptions<T>): stream.Readable {
+	const bundle = new WritableBundle(options);
+	for (const { id, data } of options.resourceData) {
+		bundle.addResource(id, data);
+	}
+	bundle.finalize();
+	return bundle.stream;
 }
