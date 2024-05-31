@@ -11,7 +11,7 @@ const expect = chai.expect;
 
 describe('deduplication tests', () => {
 	it('create a bundle with duplicates and iterate over it', async () => {
-		const myBundle = bundle.create({
+		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello 1', 'world 1'],
 			resources: [

@@ -12,7 +12,7 @@ const expect = chai.expect;
 
 describe('hash failures', () => {
 	it('add resource with bad hash', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -77,7 +77,7 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with unknown digest algorithm', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -100,7 +100,7 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with malformed digest', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [

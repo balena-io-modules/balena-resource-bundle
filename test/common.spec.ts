@@ -43,7 +43,7 @@ const expect = chai.expect;
 
 describe('common usage', () => {
 	it('create bundle and then open it and read it', async () => {
-		const myBundle = bundle.create({
+		const myBundleStream = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt', 'world.txt'],
 			resources: [
@@ -60,17 +60,13 @@ describe('common usage', () => {
 						'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
 				},
 			],
+			resourceData: [
+				{ id: 'hello', data: stringToStream('hello') },
+				{ id: 'world', data: stringToStream('world') },
+			],
 		});
 
-		const hello = stringToStream('hello');
-		myBundle.addResource('hello', hello);
-
-		const world = stringToStream('world');
-		myBundle.addResource('world', world);
-
-		myBundle.finalize();
-
-		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
+		const readableBundle = bundle.open(myBundleStream, 'foo@1');
 		const manifest = await readableBundle.manifest();
 
 		const resources = new Array<string>();
@@ -103,7 +99,7 @@ describe('common usage', () => {
 		const count = 50000;
 		const strings = ['hello'.repeat(count), 'world'.repeat(count)];
 
-		const myBundle = bundle.create({
+		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt', 'world.txt'],
 			resources: [

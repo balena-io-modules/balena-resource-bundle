@@ -28,9 +28,9 @@ To create a bundle you use the `create` function to get back an object that will
 ```typescript
 import * as fs from 'node:fs';
 import * as stream from 'node:stream';
-import { create } from '@balena/resource-bundle';
+import { WritableResourceBundle } from '@balena/resource-bundle';
 
-const myBundle = create<ConcatManifest>({
+const myBundle = new WritableResourceBundle({
   type: 'com.example.concat@1',
   manifest: {
     files: ['a.txt', 'b.txt'],
@@ -60,6 +60,41 @@ myBundle.finalize();
 
 const dest = fs.createWriteStream('./mybundle.tar');
 await stream.pipeline(myBundle.stream, dest);
+```
+
+If you have your resource stream around ready to go, you can use the convenience `create` function:
+
+```typescript
+import * as fs from 'node:fs';
+import * as stream from 'node:stream';
+import { create } from '@balena/resource-bundle';
+
+const myBundleStream = create<ConcatManifest>({
+  type: 'com.example.concat@1',
+  manifest: {
+    files: ['a.txt', 'b.txt'],
+    separator: ' ',
+  },
+  resources: [
+    {
+      id: 'a.txt',
+      size: 5,
+      digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+    },
+    {
+      id: 'b.txt',
+      size: 5,
+      digest: 'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
+    },
+  ],
+  resourceData: [
+    { id: 'a.txt', data: stringToStream('hello') },
+    { id: 'b.txt', data: stringToStream('world') },
+  ]
+});
+
+const dest = fs.createWriteStream('./mybundle.tar');
+await stream.pipeline(myBundleStream, dest);
 ```
 
 You can read a resource bundle and extract the manifest and payload like so:

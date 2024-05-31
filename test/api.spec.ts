@@ -10,7 +10,7 @@ const expect = chai.expect;
 
 describe('api mishandling', () => {
 	it('read resources without accessing manifest', async () => {
-		const writable = bundle.create({
+		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -40,7 +40,7 @@ describe('api mishandling', () => {
 	});
 
 	it('read manifest with mismatching bundle type', async () => {
-		const writable = bundle.create({
+		const writableStream = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -51,13 +51,10 @@ describe('api mishandling', () => {
 						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 				},
 			],
+			resourceData: [{ id: 'hello', data: stringToStream('hello') }],
 		});
 
-		const hello = stringToStream('hello');
-		writable.addResource('hello', hello);
-		writable.finalize();
-
-		const readable = bundle.open(writable.stream, 'bar@1');
+		const readable = bundle.open(writableStream, 'bar@1');
 
 		try {
 			await readable.manifest();
