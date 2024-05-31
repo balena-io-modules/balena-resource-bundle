@@ -1,4 +1,24 @@
 - commits:
+    - subject: Add LICENSE and basic README
+      hash: c6ff68668a5e7c9e8cf2daca14b3b3bef567ff00
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+    - subject: Simplify usage by not relying on promises
+      hash: c878e7ecd3b6b4cd5b036da27c778ae7a430b6f4
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+  version: 0.1.0
+  title: ""
+  date: 2024-05-31T12:11:38.821Z
+- commits:
     - subject: Export main types as public API
       hash: 6602f58e131348e1064fdd23ebb52ff6cf3f957f
       body: ""
