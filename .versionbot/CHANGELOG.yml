@@ -1,4 +1,16 @@
 - commits:
+    - subject: Export main types as public API
+      hash: 6602f58e131348e1064fdd23ebb52ff6cf3f957f
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.0.8
+  title: ""
+  date: 2024-05-31T07:44:01.713Z
+- commits:
     - subject: Make NPM package public
       hash: 9a82a5fe4a3d586b39c556f8c470cb798ded25c6
       body: ""
