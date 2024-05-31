@@ -1,4 +1,16 @@
 - commits:
+    - subject: Minor README fixes
+      hash: 0e1e280dc19164f609d86375073711601650162b
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.2.1
+  title: ""
+  date: 2024-05-31T16:12:26.512Z
+- commits:
     - subject: Add ability to create a finalized bundle from options
       hash: eb03e313ed6acd296e4df1c5f67bd6d5ace306a9
       body: ""
