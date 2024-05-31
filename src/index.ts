@@ -1,2 +1,3 @@
-export { open } from './readable';
-export { create } from './writable';
+export { open, type ReadableBundle } from './readable';
+export { create, type WritableBundle } from './writable';
+export * from './types';
