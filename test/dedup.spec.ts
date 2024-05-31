@@ -33,15 +33,14 @@ describe('deduplication tests', () => {
 		});
 
 		const hello1 = stringToStream('hello');
-		await myBundle.addResource('hello 1', hello1);
+		myBundle.addResource('hello 1', hello1);
 
 		const world1 = stringToStream('world');
-		await myBundle.addResource('world 1', world1);
+		myBundle.addResource('world 1', world1);
+
+		myBundle.finalize();
 
 		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
-
-		await myBundle.finalize();
-
 		const manifest = await readableBundle.manifest();
 
 		const resources = new Array<string>();

@@ -1,6 +1,7 @@
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
+import * as stream from 'node:stream';
 
 import * as bundle from '../src';
 
@@ -25,9 +26,10 @@ describe('read/write resources failures', () => {
 		});
 
 		const hello = new ErroringStream('hello');
+		myBundle.addResource('hello', hello);
 
 		try {
-			await myBundle.addResource('hello', hello);
+			await stream.promises.finished(myBundle.stream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('ErroringStream is throwing an error');
@@ -48,16 +50,12 @@ describe('read/write resources failures', () => {
 			],
 		});
 
-		try {
-			const hello = stringToStream('hello');
-			await myBundle.addResource('hello', hello);
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Size mismatch');
-		}
+		const hello = stringToStream('hello');
+		myBundle.addResource('hello', hello);
+		myBundle.finalize();
 
 		try {
-			await myBundle.finalize();
+			await stream.promises.finished(myBundle.stream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Size mismatch');
@@ -78,9 +76,10 @@ describe('read/write resources failures', () => {
 			],
 		});
 
+		const hello = stringToStream('hello');
+
 		try {
-			const hello = stringToStream('hello');
-			await myBundle.addResource('world', hello);
+			myBundle.addResource('world', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Adding unknown resource "world"');
@@ -102,11 +101,12 @@ describe('read/write resources failures', () => {
 		});
 
 		const hello = stringToStream('hello');
-		await myBundle.addResource('hello', hello);
+		myBundle.addResource('hello', hello);
+
+		const hello2 = stringToStream('hello');
 
 		try {
-			const hello2 = stringToStream('hello');
-			await myBundle.addResource('hello', hello2);
+			myBundle.addResource('hello', hello2);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Resource "hello" is already added');
@@ -134,10 +134,10 @@ describe('read/write resources failures', () => {
 		});
 
 		const hello = stringToStream('hello');
-		await myBundle.addResource('hello', hello);
+		myBundle.addResource('hello', hello);
 
 		try {
-			await myBundle.finalize();
+			myBundle.finalize();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing resources: world');

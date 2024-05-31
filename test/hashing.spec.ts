@@ -25,9 +25,10 @@ describe('hash failures', () => {
 		});
 
 		const hello = stringToStream('hello');
+		writable.addResource('hello', hello);
 
 		try {
-			await writable.addResource('hello', hello);
+			await stream.promises.finished(writable.stream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -91,7 +92,7 @@ describe('hash failures', () => {
 		const hello = stringToStream('hello');
 
 		try {
-			await writable.addResource('hello', hello);
+			writable.addResource('hello', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Digest method not supported');
@@ -114,7 +115,7 @@ describe('hash failures', () => {
 		const hello = stringToStream('hello');
 
 		try {
-			await writable.addResource('hello', hello);
+			writable.addResource('hello', hello);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
