@@ -5,14 +5,14 @@ import * as stream from 'node:stream';
 
 import * as bundle from '../src';
 
-import { stringToStream, createTarBundle } from './utils';
+import { createTarBundle } from './utils';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 describe('hash failures', () => {
 	it('add resource with bad hash', async () => {
-		const writable = new bundle.WritableBundle({
+		const writableStream = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -20,15 +20,13 @@ describe('hash failures', () => {
 					id: 'hello',
 					size: 5,
 					digest: 'sha256:deadbeef',
+					data: bundle.stringToStream('hello'),
 				},
 			],
 		});
 
-		const hello = stringToStream('hello');
-		writable.addResource('hello', hello);
-
 		try {
-			await stream.promises.finished(writable.stream);
+			await stream.promises.finished(writableStream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -60,13 +58,11 @@ describe('hash failures', () => {
 
 		pack.finalize();
 
-		const readable = bundle.open(pack, 'foo@1');
-
-		await readable.manifest();
+		const readable = await bundle.read(pack, 'foo@1');
 
 		try {
-			for await (const { resource } of readable.resources()) {
-				await stream.promises.finished(resource);
+			for (const resource of readable.resources) {
+				await stream.promises.finished(resource.data);
 			}
 			expect.fail('Unreachable');
 		} catch (error) {
@@ -80,19 +76,18 @@ describe('hash failures', () => {
 		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest: 'unk256:aaaaaaaa',
-				},
-			],
 		});
 
-		const hello = stringToStream('hello');
+		writable.addResource({
+			id: 'hello.txt',
+			size: 5,
+			digest: 'unk256:aaaaaaaa',
+			data: bundle.stringToStream('hello'),
+		});
 
 		try {
-			writable.addResource('hello', hello);
+			// TODO: this should throw on addResource instead
+			writable.finalize();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Digest method not supported');
@@ -103,19 +98,18 @@ describe('hash failures', () => {
 		const writable = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest: 'sha256_aaaaaaaaaaaaaaaa',
-				},
-			],
 		});
 
-		const hello = stringToStream('hello');
+		writable.addResource({
+			id: 'hello.txt',
+			size: 5,
+			digest: 'sha256_aaaaaaaaaaaaaaaa',
+			data: bundle.stringToStream('hello'),
+		});
 
 		try {
-			writable.addResource('hello', hello);
+			// TODO: this should throw on addResource instead
+			writable.finalize();
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(

@@ -2,180 +2,302 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { Hasher, sha256sum } from './hasher';
-import type { Contents } from './types';
-import { CONTENTS_JSON, CURRENT_BUNDLE_VERSION, RESOURCES_DIR } from './types';
+import type { Contents, Resource } from './types';
+import {
+	CONTENTS_JSON,
+	CONTENTS_SIG,
+	CURRENT_BUNDLE_VERSION,
+	RESOURCES_DIR,
+} from './constants';
+import { streamToString } from './utils';
 import * as signer from './signer';
 
-export class ReadableBundle<T> {
-	readonly type: string;
-	readonly publicKey?: string;
-	private contents: Contents<T> | undefined;
-	private iterator: AsyncIterator<tar.Entry, any, undefined> | null;
+function makeEntriesIterator(extract: tar.Extract) {
+	type Value = {
+		headers: tar.Headers;
+		data: stream.Readable;
+	};
+	type Result = {
+		value?: Value;
+		done: boolean;
+	};
+	type Entry = {
+		value: Value;
+		next: tar.Callback;
+	};
+	type EntryHandler = (entry: Entry) => void;
 
-	constructor(input: stream.Readable, type: string, publicKey?: string) {
-		const extract = tar.extract();
+	const entries: Entry[] = [];
 
-		stream.pipeline(input, extract, (err) => {
-			if (err) {
-				throw err;
+	let error: Error | undefined;
+	let resolve0: ((res: Result) => void) | undefined;
+	let reject0: ((err: Error) => void) | undefined;
+	let entryHandler: EntryHandler | undefined;
+
+	function tick() {
+		// If there are pending entries...
+		if (entries.length > 0) {
+			// and there's a pending promise...
+			if (resolve0 != null) {
+				// then someone is awaiting the next entry.
+				// Resolve the promise.
+				const { value, next } = entries.shift()!;
+				resolve0({ value, done: false });
+				resolve0 = undefined;
+				reject0 = undefined;
+				next();
+				return;
 			}
-		});
-
-		this.type = type;
-		this.iterator = extract[Symbol.asyncIterator]();
-		this.publicKey = publicKey;
+			// Otherwise, forward entries to the user handler, if any
+			else if (entryHandler != null) {
+				entryHandler(entries.shift()!);
+			}
+		}
+		// There are no pending entries, propagate the error instead, if any
+		else if (error != null && reject0 != null) {
+			reject0(error);
+			resolve0 = undefined;
+			reject0 = undefined;
+			error = undefined;
+		}
 	}
 
-	public async manifest(): Promise<T> {
-		if (this.contents != null) {
-			return this.contents.manifest;
-		}
-
-		if (this.iterator == null) {
-			throw new Error('Iterator is already drained');
-		}
-
-		const entry: tar.Entry = (await this.iterator.next()).value;
-
-		const contentsRes = new Response(entry as any);
-		const contentsStr = await contentsRes.text();
-
-		const entrySig: tar.Entry = (await this.iterator.next()).value;
-
-		const contentsSigRes = new Response(entrySig as any);
-		const contentsSig = await contentsSigRes.json();
-
-		const { digest, signature } = contentsSig;
-		if (digest == null) {
-			throw new Error(`${CONTENTS_JSON} integrity could not be verified`);
-		}
-
-		if (sha256sum(contentsStr) !== digest) {
-			throw new Error(`${CONTENTS_JSON} appears to be corrupted`);
-		}
-
-		if (signature != null) {
-			if (this.publicKey == null) {
-				throw new Error('Signed bundle requires a public key to be provided');
-			}
-
-			if (!signer.isValid(this.publicKey, signature, contentsStr)) {
-				throw new Error(`${CONTENTS_JSON} has invalid signature`);
-			}
-		} else {
-			if (this.publicKey != null) {
-				throw new Error('Public key provided but bundle is missing signature');
-			}
-		}
-
-		const contents: Contents<T> = JSON.parse(contentsStr);
-		this.contents = contents;
-
-		const requiredKeys = ['version', 'type', 'manifest', 'resources'];
-		for (const key of requiredKeys) {
-			if (!(key in contents)) {
-				throw new Error(`Missing "${key}" in ${CONTENTS_JSON}`);
-			}
-		}
-
-		if (contents.version !== CURRENT_BUNDLE_VERSION) {
-			throw new Error(
-				`Unsupported bundle version ${contents.version} (expected ${CURRENT_BUNDLE_VERSION})`,
-			);
-		}
-
-		if (contents.type !== this.type) {
-			throw new Error(
-				`Expected type (${this.type}) does not match received type (${contents.type})`,
-			);
-		}
-
-		for (const resource of contents.resources) {
-			const requiredResourceKeys = ['id', 'size', 'digest'];
-			for (const key of requiredResourceKeys) {
-				if (!(key in resource)) {
-					throw new Error(
-						`Missing "${key}" in "resources" of ${CONTENTS_JSON}`,
-					);
-				}
-			}
-
-			if (resource.digest.includes(':') === false) {
-				throw new Error(`Resource with malformed digest ${resource.digest}`);
-			}
-		}
-
-		const resourceIds = contents.resources.map(({ id }) => id);
-		const uniqueIds = new Set(resourceIds);
-		if (resourceIds.length !== uniqueIds.size) {
-			const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
-			throw new Error(
-				`Duplicate resource IDs found in contents.json: ${duplicateIds}`,
-			);
-		}
-
-		return this.contents.manifest;
+	function onentry(
+		headers: tar.Headers,
+		data: stream.Readable,
+		callback: tar.Callback,
+	) {
+		entries.push({ value: { headers, data }, next: callback });
+		tick();
 	}
 
-	public async *resources() {
-		if (this.contents == null) {
-			throw new Error('Must call `manifest()` before `resources()`');
+	function onerror(err: Error) {
+		if (error == null) {
+			error = err;
 		}
+	}
 
-		if (this.iterator == null) {
-			throw new Error('resources() is already called');
+	function onnext(
+		resolve: (res: Result) => void,
+		reject: (err: Error) => void,
+	) {
+		if (resolve0 != null) {
+			throw new Error('Attempt to concurrently iterate over entries');
 		}
+		resolve0 = resolve;
+		reject0 = reject;
+		tick();
+	}
 
-		while (true) {
-			const result = await this.iterator.next();
-			if (result.done) {
-				this.iterator = null;
-				break;
-			}
-
-			const entry = result.value;
-
-			const path = entry.header.name;
-
-			const filename = path.split(`${RESOURCES_DIR}/`)[1];
-			if (filename == null) {
-				throw new Error(`Unexpected file in read bundle ${path}`);
-			}
-
-			const descriptors = this.contents.resources.filter(
-				(desc) => sha256sum(desc.id) === filename,
-			);
-
-			if (descriptors.length === 0) {
-				throw new Error(`Unknown resource ${path}`);
-			}
-
-			const descriptor = descriptors[0];
-
-			if (descriptors.length > 1) {
-				throw new Error(`Resources with duplicated ID ${descriptor.id}`);
-			}
-
-			const hasher = new Hasher(descriptor.digest);
-
-			stream.pipeline(entry, hasher, (err) => {
-				if (err) {
-					hasher.emit('error', err);
+	function destroy(err?: Error): Promise<Result> {
+		const promise = new Promise<Result>((resolve, reject) => {
+			extract.once('close', () => {
+				if (err != null) {
+					reject(err);
+				} else {
+					resolve({ value: undefined, done: true });
 				}
 			});
+		});
+		if (err != null) {
+			onerror(err);
+			tick();
+		}
+		return promise;
+	}
 
-			yield {
-				resource: hasher,
-				descriptor,
-			};
+	function assertNoEntryHandler() {
+		if (entryHandler != null) {
+			throw new Error(
+				'There is an entry handler registered; the iterator is unusable',
+			);
 		}
 	}
+
+	extract.on('entry', onentry);
+	extract.on('error', onerror);
+
+	return {
+		[Symbol.asyncIterator]() {
+			return this;
+		},
+		next(): Promise<Result> {
+			assertNoEntryHandler();
+			return new Promise(onnext);
+		},
+		return(): Promise<Result> {
+			assertNoEntryHandler();
+			return destroy();
+		},
+		throw(err: Error): Promise<Result> {
+			assertNoEntryHandler();
+			return destroy(err);
+		},
+		resume(cb: EntryHandler) {
+			entryHandler = cb;
+			tick();
+		},
+	};
 }
 
-export function open<T>(
+export interface ReadableBundle<T> {
+	readonly version: string;
+	readonly type: string;
+	readonly manifest: T;
+	readonly resources: Resource[];
+}
+
+export async function read<T>(
 	input: stream.Readable,
 	type: string,
 	publicKey?: string,
-): ReadableBundle<T> {
-	return new ReadableBundle(input, type, publicKey);
+): Promise<ReadableBundle<T>> {
+	const extract = tar.extract();
+	const entries = makeEntriesIterator(extract);
+
+	stream.pipeline(input, extract, (err) => {
+		if (err) {
+			extract.emit('error', err);
+		}
+	});
+
+	// Read contents.json
+
+	let entry = await entries.next();
+	if (entry.value == null || entry.done) {
+		throw new Error('Unexpected end of stream');
+	}
+	let name = entry.value.headers.name;
+	if (name !== CONTENTS_JSON) {
+		throw new Error(`Unexpected file in read bundle ${name}`);
+	}
+	const contentsStr = await streamToString(entry.value.data);
+
+	// Read contents.sig
+
+	entry = await entries.next();
+	if (entry.value == null || entry.done) {
+		throw new Error('Unexpected end of stream');
+	}
+	name = entry.value.headers.name;
+	if (name !== CONTENTS_SIG) {
+		throw new Error(`Unexpected file in read bundle ${name}`);
+	}
+	const contentsSigStr = await streamToString(entry.value.data);
+	const contentsSig = JSON.parse(contentsSigStr);
+
+	// Validate integrity and signature
+
+	const { digest, signature } = contentsSig;
+	if (digest == null) {
+		throw new Error(`${CONTENTS_JSON} integrity could not be verified`);
+	}
+	if (sha256sum(contentsStr) !== digest) {
+		throw new Error(`${CONTENTS_JSON} appears to be corrupted`);
+	}
+	if (signature != null) {
+		if (publicKey == null) {
+			throw new Error('Signed bundle requires a public key to be provided');
+		}
+		if (!signer.isValid(publicKey, signature, contentsStr)) {
+			throw new Error(`${CONTENTS_JSON} has invalid signature`);
+		}
+	} else {
+		if (publicKey != null) {
+			throw new Error('Public key provided but bundle is missing signature');
+		}
+	}
+
+	// Parse and validate contents
+
+	const contents: Contents<T> = JSON.parse(contentsStr);
+
+	const requiredKeys = ['version', 'type', 'manifest', 'resources'];
+	for (const key of requiredKeys) {
+		if (!(key in contents)) {
+			throw new Error(`Missing "${key}" in ${CONTENTS_JSON}`);
+		}
+	}
+	if (contents.version !== CURRENT_BUNDLE_VERSION) {
+		throw new Error(
+			`Unsupported bundle version ${contents.version} (expected ${CURRENT_BUNDLE_VERSION})`,
+		);
+	}
+	if (contents.type !== type) {
+		throw new Error(
+			`Expected type (${type}) does not match received type (${contents.type})`,
+		);
+	}
+
+	for (const resource of contents.resources) {
+		const requiredResourceKeys = ['id', 'size', 'digest'];
+		for (const key of requiredResourceKeys) {
+			if (!(key in resource)) {
+				throw new Error(`Missing "${key}" in "resources" of ${CONTENTS_JSON}`);
+			}
+		}
+
+		if (resource.digest.includes(':') === false) {
+			throw new Error(`Resource with malformed digest ${resource.digest}`);
+		}
+	}
+
+	// Extract resources
+
+	const resources: Resource[] = [];
+
+	const resourceIds = contents.resources.map(({ id }) => id);
+	const uniqueIds = new Set(resourceIds);
+	if (resourceIds.length !== uniqueIds.size) {
+		const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
+		throw new Error(
+			`Duplicate resource IDs found in contents.json: ${duplicateIds}`,
+		);
+	}
+	resources.push(
+		...contents.resources.map((descriptor) => {
+			return {
+				...descriptor,
+				data: new stream.PassThrough(),
+			};
+		}),
+	);
+
+	// Register a custom entry handler to properly forward entries into
+	// their respective resource streams without having to await each.
+	// This makes the iterator unusable from this point on.
+	entries.resume(({ value: { headers, data }, next }) => {
+		const path = headers.name;
+
+		const filename = path.split(`${RESOURCES_DIR}/`)[1];
+		if (filename == null) {
+			return next(new Error(`Unexpected file in read bundle ${path}`));
+		}
+
+		const matchingResources = resources.filter(
+			(desc) => sha256sum(desc.id) === filename,
+		);
+
+		if (matchingResources.length === 0) {
+			return next(new Error(`Unknown resource ${path}`));
+		}
+
+		const resource = matchingResources[0];
+
+		if (matchingResources.length > 1) {
+			return next(new Error(`Resources with duplicated ID ${resource.id}`));
+		}
+
+		const hasher = new Hasher(resource.digest);
+		const dest = resource.data as stream.PassThrough;
+
+		stream.pipeline(data, hasher, dest, next);
+	});
+
+	return {
+		version: contents.version,
+		type: contents.type,
+		manifest: contents.manifest,
+		resources,
+	};
 }

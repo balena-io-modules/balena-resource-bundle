@@ -23,43 +23,41 @@ interface ConcatManifest {
 }
 ```
 
+### Creating a bundle
+
 To create a bundle you create a `WritableBundle` instance that will allow you to add resources to the bundle and ultimately stream its contents to whatever destination you desire.
 
 ```typescript
 import * as fs from 'node:fs';
 import * as stream from 'node:stream';
-import { WritableBundle } from '@balena/resource-bundle';
+import * as bundle from '@balena/resource-bundle';
 
-const myBundle = new WritableBundle({
+const myBundle = new bundle.WritableBundle({
   type: 'com.example.concat@1',
   manifest: {
     files: ['a.txt', 'b.txt'],
     separator: ' ',
   },
-  resources: [
-    {
-      id: 'a.txt',
-      size: 5,
-      digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-    },
-    {
-      id: 'b.txt',
-      size: 5,
-      digest: 'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
-    },
-  ],
 });
 
-const hello = stringToStream('hello');
-myBundle.addResource('a.txt', hello);
+myBundle.addResource({
+  id: 'a.txt',
+  size: 5,
+  digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+  data: bundle.stringToStream('hello'),
+});
 
-const world = stringToStream('world');
-myBundle.addResource('b.txt', world);
+myBundle.addResource({
+  id: 'b.txt',
+  size: 5,
+  digest: 'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
+  data: bundle.stringToStream('world'),
+});
 
-myBundle.finalize();
+const myBundleStream = myBundle.finalize();
 
 const dest = fs.createWriteStream('./mybundle.tar');
-await stream.pipeline(myBundle.stream, dest);
+await stream.pipeline(myBundleStream, dest);
 ```
 
 If you have your resource streams around ready to go, you can use the convenience `create` function, which is equivalent to creating a `WritableBundle`, calling `addResource` for each resource and `finalize` at the end:
@@ -67,9 +65,9 @@ If you have your resource streams around ready to go, you can use the convenienc
 ```typescript
 import * as fs from 'node:fs';
 import * as stream from 'node:stream';
-import { create } from '@balena/resource-bundle';
+import * as bundle from '@balena/resource-bundle';
 
-const myBundleStream = create<ConcatManifest>({
+const myBundleStream = bundle.create<ConcatManifest>({
   type: 'com.example.concat@1',
   manifest: {
     files: ['a.txt', 'b.txt'],
@@ -80,16 +78,14 @@ const myBundleStream = create<ConcatManifest>({
       id: 'a.txt',
       size: 5,
       digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+      data: bundle.stringToStream('hello'),
     },
     {
       id: 'b.txt',
       size: 5,
       digest: 'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
+      data: bundle.stringToStream('world'),
     },
-  ],
-  resourceData: [
-    { id: 'a.txt', data: stringToStream('hello') },
-    { id: 'b.txt', data: stringToStream('world') },
   ]
 });
 
@@ -97,26 +93,27 @@ const dest = fs.createWriteStream('./mybundle.tar');
 await stream.pipeline(myBundleStream, dest);
 ```
 
+### Reading a bundle
+
 You can read a resource bundle and extract the manifest and resources like so:
 
 ```typescript
 import * as fs from 'node:fs';
 import * as stream from 'node:stream';
-import { open } from '@balena/resource-bundle';
+import * as bundle from '@balena/resource-bundle';
 
 const src = fs.createReadStream('./mybundle.tar');
-const myBundle = bundle.open<ConcatManifest>(src, 'com.example.concat@1');
+const myBundle = await bundle.read<ConcatManifest>(src, 'com.example.concat@1');
 
-const manifest = await myBundle.manifest();
+const manifest = myBundle.manifest;
 // > { files: ['a.txt', 'b.txt'], separator: ' ' }
 
 const strings = new Array<string>();
 
-for await (const { resource } of myBundle.resources()) {
-  const contents = await streamToString(resource);
+for (const resource of myBundle.resources) {
+  const contents = await streamToString(resource.data);
   strings.push(contents);
 }
-
 strings.join(manifest.separator);
 // > hello world
 
@@ -125,7 +122,7 @@ strings.join(manifest.separator);
 
 ## Resource Bundle format
 
-The contents of a resource bundle look like this:
+A resource bundle is a tarball with the following contents:
 
 ```
 /contents.json
@@ -133,6 +130,8 @@ The contents of a resource bundle look like this:
 /resources/dead45beef34
 /resources/...
 ```
+
+Be mindful that unpacking a resource bundle and packing it up again will likely result in an unreadable bundle. The bundle contents have a strict order and the stream-ability of bundles depends on this order being maintained.
 
 ### `/contents.json`
 
