@@ -6,7 +6,7 @@ import type { Contents } from './types';
 import { CONTENTS_JSON, CURRENT_BUNDLE_VERSION, RESOURCES_DIR } from './types';
 import * as signer from './signer';
 
-class ReadableBundle<T> {
+export class ReadableBundle<T> {
 	readonly type: string;
 	readonly publicKey?: string;
 	private contents: Contents<T> | undefined;

@@ -22,7 +22,7 @@ function toPrettyJSON(obj: any): string {
 	return JSON.stringify(obj, null, 2);
 }
 
-class WritableBundle<T> {
+export class WritableBundle<T> {
 	private pack: tar.Pack | null;
 	private resources: Resource[];
 	private packError: Error | undefined;
