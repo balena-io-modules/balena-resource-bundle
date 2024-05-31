@@ -23,12 +23,11 @@ describe('api mishandling', () => {
 			],
 		});
 
-		const readable = bundle.open(writable.stream, 'foo@1');
-
 		const hello = stringToStream('hello');
-		await writable.addResource('hello', hello);
+		writable.addResource('hello', hello);
+		writable.finalize();
 
-		await writable.finalize();
+		const readable = bundle.open(writable.stream, 'foo@1');
 
 		try {
 			await readable.resources().next();
@@ -54,12 +53,11 @@ describe('api mishandling', () => {
 			],
 		});
 
-		const readable = bundle.open(writable.stream, 'bar@1');
-
 		const hello = stringToStream('hello');
-		await writable.addResource('hello', hello);
+		writable.addResource('hello', hello);
+		writable.finalize();
 
-		await writable.finalize();
+		const readable = bundle.open(writable.stream, 'bar@1');
 
 		try {
 			await readable.manifest();

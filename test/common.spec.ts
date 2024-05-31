@@ -62,16 +62,15 @@ describe('common usage', () => {
 			],
 		});
 
-		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
-
 		const hello = stringToStream('hello');
-		await myBundle.addResource('hello', hello);
+		myBundle.addResource('hello', hello);
 
 		const world = stringToStream('world');
-		await myBundle.addResource('world', world);
+		myBundle.addResource('world', world);
 
-		await myBundle.finalize();
+		myBundle.finalize();
 
+		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
 		const manifest = await readableBundle.manifest();
 
 		const resources = new Array<string>();
@@ -121,18 +120,16 @@ describe('common usage', () => {
 			],
 		});
 
-		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
-
 		[
 			['hello', repeatedStringToStream('hello', count)] as const,
 			['world', repeatedStringToStream('world', count)] as const,
-		].forEach(async ([id, strStream]) => {
-			// eslint-disable-next-line @typescript-eslint/no-floating-promises
+		].forEach(([id, strStream]) => {
 			myBundle.addResource(id, strStream);
 		});
 
-		await myBundle.finalize();
+		myBundle.finalize();
 
+		const readableBundle = bundle.open(myBundle.stream, 'foo@1');
 		const manifest = await readableBundle.manifest();
 
 		const resources = new Array<string>();

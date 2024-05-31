@@ -23,10 +23,9 @@ function toPrettyJSON(obj: any): string {
 }
 
 export class WritableBundle<T> {
-	private pack: tar.Pack | null;
+	private pack: tar.Pack;
 	private resources: Resource[];
 	private packError: Error | undefined;
-	private lastResourcePromise: Promise<void> | undefined;
 	private addedResources: Set<string>;
 
 	constructor(
@@ -76,69 +75,35 @@ export class WritableBundle<T> {
 		this.addedResources = new Set();
 	}
 
-	public async addResource(id: string, data: stream.Readable) {
+	public addResource(id: string, data: stream.Readable) {
 		const resource = this.resources.find((res) => res.id === id);
 
 		if (resource == null) {
 			throw new Error(`Adding unknown resource "${id}"`);
 		}
 
+		if (this.addedResources.has(id)) {
+			throw new Error(`Resource "${id}" is already added`);
+		}
+
 		const { size, digest } = resource;
 
 		const hasher = new Hasher(digest);
 
-		// Manually enforce one stream at a time in the tar stream
-		await this.lastResourcePromise;
+		const name = `${RESOURCES_DIR}/` + sha256sum(id);
+		const entry = this.pack.entry({ name, size });
 
-		const promise = new Promise<void>((resolve, reject) => {
-			if (this.pack == null) {
-				throw new Error('This bundle has already been finalized');
-			}
-
-			if (this.addedResources.has(id)) {
-				throw new Error(`Resource "${id}" is already added`);
-			}
-
-			const name = `${RESOURCES_DIR}/` + sha256sum(id);
-			const entry = this.pack.entry({ name, size }, function (err) {
-				if (err) {
-					reject(err);
-				}
-			});
-
-			stream.pipeline(data, hasher, entry, (err) => {
-				if (err) {
-					reject(err);
-				} else {
-					resolve();
-				}
-			});
+		stream.pipeline(data, hasher, entry, () => {
+			// noop
 		});
 
-		this.lastResourcePromise = promise;
-
 		this.addedResources.add(id);
-
-		try {
-			await promise;
-		} catch (err) {
-			this.addedResources.delete(id);
-			throw err;
-		}
 	}
 
-	private get pendingResources(): Resource[] {
-		return this.resources.filter(({ id }) => !this.addedResources.has(id));
-	}
-
-	public async finalize() {
-		if (this.pack == null) {
-			throw new Error('This bundle has already been finalized');
-		}
-
-		await this.lastResourcePromise;
-
-		const pendingResources = this.pendingResources;
+	public finalize() {
+		const pendingResources = this.resources.filter(
+			({ id }) => !this.addedResources.has(id),
+		);
 
 		if (pendingResources.length > 0) {
 			throw new Error(
@@ -151,14 +116,9 @@ export class WritableBundle<T> {
 		if (this.packError != null) {
 			throw this.packError;
 		}
-
-		this.pack = null;
 	}
 
 	public get stream(): stream.Readable {
-		if (this.pack == null) {
-			throw new Error('This bundle has already been finalized');
-		}
 		return this.pack;
 	}
 }

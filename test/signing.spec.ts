@@ -57,12 +57,10 @@ describe('signing tests', () => {
 		});
 
 		const hello = stringToStream('hello');
-		await writable.addResource('hello', hello);
+		writable.addResource('hello', hello);
+		writable.finalize();
 
 		const readable = bundle.open(writable.stream, 'foo@1', PUBLIC_KEY);
-
-		await writable.finalize();
-
 		const manifest = await readable.manifest();
 
 		expect(manifest).to.eql(['hello.txt']);
@@ -86,11 +84,10 @@ describe('signing tests', () => {
 		});
 
 		const hello = stringToStream('hello');
-		await writable.addResource('hello', hello);
+		writable.addResource('hello', hello);
+		writable.finalize();
 
 		const readable = bundle.open(writable.stream, 'foo@1');
-
-		await writable.finalize();
 
 		try {
 			await readable.manifest();
@@ -120,11 +117,10 @@ describe('signing tests', () => {
 		});
 
 		const hello = stringToStream('hello');
-		await writable.addResource('hello', hello);
+		writable.addResource('hello', hello);
+		writable.finalize();
 
 		const readable = bundle.open(writable.stream, 'foo@1', 'BAD KEY');
-
-		await writable.finalize();
 
 		try {
 			await readable.manifest();
@@ -152,7 +148,7 @@ describe('signing tests', () => {
 		});
 
 		const hello = stringToStream('hello');
-		await writable.addResource('hello', hello);
+		writable.addResource('hello', hello);
 
 		const { publicKey } = generateKeyPairSync('ec', {
 			namedCurve: 'sect239k1',
@@ -165,10 +161,9 @@ describe('signing tests', () => {
 				format: 'pem',
 			},
 		});
+		writable.finalize();
 
 		const readable = bundle.open(writable.stream, 'foo@1', publicKey);
-
-		await writable.finalize();
 
 		try {
 			await readable.manifest();
