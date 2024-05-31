@@ -1,74 +1,39 @@
 import type * as stream from 'node:stream';
-import { pipeline } from 'node:stream/promises';
 
-import * as tar from 'tar-stream';
-
-import { BALENA_UPDATE_TYPE, open, type ReadableBundle } from '../index';
-
-import { toPrettyJSON } from '../writable';
-import { DOCKER_IMAGE_ROOTFS_COMPRESSED, DOCKER_IMAGE_CONFIG } from '../docker';
+import {
+	BALENA_UPDATE_TYPE,
+	open,
+	type ReadableBundle,
+	DockerArchive,
+} from '../index';
 
 export class UpdateBundleToDockerConverter {
-	private bundle: ReadableBundle<any>;
-	private manifest: any;
-	private pack: tar.Pack;
+	private _bundle: ReadableBundle<any>;
+	private _dockerArchive: DockerArchive;
 
 	constructor(input: stream.Readable) {
 		const bundle = open(input, BALENA_UPDATE_TYPE);
 
-		this.bundle = bundle;
-		this.pack = tar.pack();
+		this._bundle = bundle;
+		this._dockerArchive = new DockerArchive();
 	}
 
 	public get stream(): stream.Readable {
-		return this.pack;
+		return this._dockerArchive.stream;
 	}
 
 	public async init() {
-		const manifest = await this.bundle.manifest();
+		const manifest = await this._bundle.manifest();
 
-		this.manifest = manifest;
+		this._dockerArchive.init(manifest.images);
 	}
 
 	public async resume() {
-		const repositories: { [repo: string]: { [ref: string]: string } } = {};
-		const dockerManifests = [];
-		for (const image of this.manifest.images) {
-			const blobNames = image.manifest.layers.map(
-				(layer: any) => `${layer.digest}.tar.gz`,
-			);
-			const configName = `${image.manifest.config.digest.split(':')[1]}.json`;
-			const dockerManifest = {
-				Config: configName,
-				RepoTags: [`${image.registry}/${image.name}:latest`],
-				Layers: blobNames,
-			};
-			dockerManifests.push(dockerManifest);
-
-			repositories[`${image.registry}/${image.name}`] = {
-				latest: `${image.reference.split(':')[1]}`,
-			};
+		for await (const { resource, descriptor } of this._bundle.resources()) {
+			await this._dockerArchive.addBlob(resource, descriptor);
 		}
 
-		this.pack.entry({ name: 'manifest.json' }, toPrettyJSON(dockerManifests));
-
-		this.pack.entry({ name: 'repositories' }, toPrettyJSON(repositories));
-
-		for await (const { resource, descriptor } of this.bundle.resources()) {
-			let name;
-			if (descriptor.type === DOCKER_IMAGE_ROOTFS_COMPRESSED) {
-				name = `${descriptor.digest}.tar.gz`;
-			} else if (descriptor.type === DOCKER_IMAGE_CONFIG) {
-				name = `${descriptor.digest.split(':')[1]}.json`;
-			} else {
-				throw new Error(`Unknown resource type ${descriptor.type}`);
-			}
-
-			const entry = this.pack.entry({ name: name, size: descriptor.size });
-			await pipeline(resource, entry);
-		}
-
-		this.pack.finalize();
+		this._dockerArchive.finalize();
 	}
 }
 

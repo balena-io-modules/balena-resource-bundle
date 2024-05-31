@@ -1,7 +1,13 @@
 import * as stream from 'node:stream';
 import { type ReadableStream } from 'node:stream/web';
+import { pipeline } from 'node:stream/promises';
+
+import * as tar from 'tar-stream';
 
 import * as authenticate from 'auth-header';
+
+import type { Resource, WritableBundle } from './index';
+import { toPrettyJSON } from './writable';
 
 export const DOCKER_IMAGE_ROOTFS_COMPRESSED =
 	'application/vnd.docker.image.rootfs.diff.tar.gzip';
@@ -15,6 +21,13 @@ export interface RegistryCredentials {
 	password: string;
 }
 
+export interface Image {
+	registry: string;
+	name: string;
+	reference: string;
+	auth?: RegistryCredentials;
+}
+
 export interface DockerImageBlob {
 	mediaType: string;
 	size: number;
@@ -26,6 +39,17 @@ export interface DockerImageManifest {
 	mediaType: string;
 	config: DockerImageBlob;
 	layers: [DockerImageBlob];
+}
+
+export type DockerImage = Omit<Image, 'auth'> & {
+	manifest: DockerImageManifest;
+};
+
+interface ScheduledDownload {
+	endpoint: string;
+	name: string;
+	digest: string;
+	token: string | undefined;
 }
 
 async function getAuthToken(
@@ -181,4 +205,142 @@ export async function fetchBlob(
 	}
 
 	return stream.Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+}
+
+export class DockerImageBundle {
+	private _imageManifests: DockerImage[];
+	private _resources: Resource[];
+	private _scheduledDownloads: ScheduledDownload[];
+
+	constructor(private _images: Image[]) {
+		this._imageManifests = [];
+	}
+
+	public get imageManifests(): DockerImage[] {
+		return this._imageManifests;
+	}
+
+	public get resources(): Resource[] {
+		return this._resources;
+	}
+
+	async fetchManifestsAndTokens() {
+		const entries = [];
+		const digests = new Set<string>();
+
+		for (const image of this._images) {
+			const endpoint = `https://${image.registry}/v2`;
+
+			const [imageManifest, token] = await fetchManifestAndToken(
+				endpoint,
+				image.name,
+				image.reference,
+				image.auth,
+			);
+
+			this._imageManifests.push({
+				registry: image.registry,
+				name: image.name,
+				reference: image.reference,
+				manifest: imageManifest,
+			});
+
+			const blobs = [imageManifest.config, ...imageManifest.layers];
+
+			for (const blob of blobs) {
+				if (!digests.has(blob.digest)) {
+					entries.push({
+						blob,
+						endpoint,
+						name: image.name,
+						token,
+					});
+
+					digests.add(blob.digest);
+				}
+			}
+		}
+
+		this._resources = entries.map(({ blob }) => ({
+			id: blob.digest,
+			size: blob.size,
+			digest: blob.digest,
+			type: blob.mediaType,
+		}));
+
+		this._scheduledDownloads = entries.map((entry) => ({
+			endpoint: entry.endpoint,
+			name: entry.name,
+			digest: entry.blob.digest,
+			token: entry.token,
+		}));
+	}
+
+	async fetchBlobs<T>(writable: WritableBundle<T>) {
+		for (const download of this._scheduledDownloads) {
+			const blob = await fetchBlob(
+				download.endpoint,
+				download.name,
+				download.digest,
+				download.token,
+			);
+
+			await writable.addResource(download.digest, blob);
+		}
+	}
+}
+
+export class DockerArchive {
+	private _pack: tar.Pack;
+
+	constructor() {
+		this._pack = tar.pack();
+	}
+
+	public get stream(): stream.Readable {
+		return this._pack;
+	}
+
+	public init(images: DockerImage[]) {
+		const repositories: { [repo: string]: { [ref: string]: string } } = {};
+		const dockerManifests = [];
+		for (const image of images) {
+			const blobNames = image.manifest.layers.map(
+				(layer: any) => `${layer.digest}.tar.gz`,
+			);
+			const configName = `${image.manifest.config.digest.split(':')[1]}.json`;
+			const dockerManifest = {
+				Config: configName,
+				RepoTags: [`${image.registry}/${image.name}:latest`],
+				Layers: blobNames,
+			};
+			dockerManifests.push(dockerManifest);
+
+			repositories[`${image.registry}/${image.name}`] = {
+				latest: `${image.reference.split(':')[1]}`,
+			};
+		}
+
+		this._pack.entry({ name: 'manifest.json' }, toPrettyJSON(dockerManifests));
+
+		this._pack.entry({ name: 'repositories' }, toPrettyJSON(repositories));
+	}
+
+	public async addBlob(blob: stream.Readable, descriptor: Resource) {
+		let name;
+		if (descriptor.type === DOCKER_IMAGE_ROOTFS_COMPRESSED) {
+			name = `${descriptor.digest}.tar.gz`;
+		} else if (descriptor.type === DOCKER_IMAGE_CONFIG) {
+			name = `${descriptor.digest.split(':')[1]}.json`;
+		} else {
+			throw new Error(`Unknown resource type ${descriptor.type}`);
+		}
+
+		const entry = this._pack.entry({ name: name, size: descriptor.size });
+		await pipeline(blob, entry);
+	}
+
+	public finalize() {
+		this._pack.finalize();
+	}
 }
