@@ -23,14 +23,14 @@ interface ConcatManifest {
 }
 ```
 
-To create a bundle you use the `create` function to get back an object that will allow you to add resources to the bundle and ultimately stream its contents to whatever destination you desire.
+To create a bundle you create a `WritableBundle` instance that will allow you to add resources to the bundle and ultimately stream its contents to whatever destination you desire.
 
 ```typescript
 import * as fs from 'node:fs';
 import * as stream from 'node:stream';
-import { WritableResourceBundle } from '@balena/resource-bundle';
+import { WritableBundle } from '@balena/resource-bundle';
 
-const myBundle = new WritableResourceBundle({
+const myBundle = new WritableBundle({
   type: 'com.example.concat@1',
   manifest: {
     files: ['a.txt', 'b.txt'],
@@ -62,7 +62,7 @@ const dest = fs.createWriteStream('./mybundle.tar');
 await stream.pipeline(myBundle.stream, dest);
 ```
 
-If you have your resource stream around ready to go, you can use the convenience `create` function:
+If you have your resource streams around ready to go, you can use the convenience `create` function, which is equivalent to creating a `WritableBundle`, calling `addResource` for each resource and `finalize` at the end:
 
 ```typescript
 import * as fs from 'node:fs';
@@ -97,7 +97,7 @@ const dest = fs.createWriteStream('./mybundle.tar');
 await stream.pipeline(myBundleStream, dest);
 ```
 
-You can read a resource bundle and extract the manifest and payload like so:
+You can read a resource bundle and extract the manifest and resources like so:
 
 ```typescript
 import * as fs from 'node:fs';
