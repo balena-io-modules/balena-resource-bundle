@@ -1,4 +1,16 @@
 - commits:
+    - subject: Simplify public API and usage
+      hash: 9461b40019704dca995615fe9999629afe662d12
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+  version: 0.3.0
+  title: ""
+  date: 2024-06-01T13:47:39.611Z
+- commits:
     - subject: Minor README fixes
       hash: 0e1e280dc19164f609d86375073711601650162b
       body: ""
