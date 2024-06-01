@@ -1,4 +1,26 @@
 - commits:
+    - subject: Expose helpers to parse and unparse image names
+      hash: 4639f8bdc656ce67bdd2eb0a83d08f091619e999
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+    - subject: Add helper to fetch multiple images more efficiently
+      hash: 303cf5770cdc2c60b84e575651d0f65727d5a756
+      body: >
+        `fetchImages` can deduplicate layers shared between the given images and
+        only include them once.
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.3.2
+  title: ""
+  date: 2024-06-01T16:23:30.648Z
+- commits:
     - subject: Add helpers for working with Docker images
       hash: b61d135016da6cee850dfb5fcca857a1e841d730
       body: ""
