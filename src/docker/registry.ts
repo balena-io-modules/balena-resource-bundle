@@ -164,7 +164,47 @@ function getDefaultHeaders(token?: string): { [name: string]: string } {
 	return headers;
 }
 
-function unparseImageName(image: ImageDescriptor): string {
+export function parseImageName(name: string): ImageDescriptor {
+	// Matches (registry)/(repo)(optional :tag or @digest)
+	// regex adapted from Docker's source code:
+	// https://github.com/docker/distribution/blob/release/2.7/reference/normalize.go#L62
+	// https://github.com/docker/distribution/blob/release/2.7/reference/regexp.go#L44
+	const match = name.match(
+		/^(?:(localhost|.*?[.:].*?)\/)?(.+?)(?::(.*?))?(?:@(.*?))?$/,
+	);
+	if (match == null) {
+		throw new Error(`Could not parse image name: ${name}`);
+	}
+	const registry = match[match.length - 4];
+	const repository = match[match.length - 3];
+	if (repository == null) {
+		throw new Error(
+			`Invalid image name '${name}'; expected [domain.tld/]repo/image[:tag][@digest] format`,
+		);
+	}
+
+	let reference: string;
+	const tag = match[match.length - 2];
+	const digest = match[match.length - 1];
+	if (digest == null && tag == null) {
+		reference = 'latest';
+	} else if (digest != null) {
+		if (
+			!digest.match(
+				/^[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*:[0-9a-f-A-F]{32,}$/,
+			)
+		) {
+			throw new Error(`Invalid digest format: ${digest}`);
+		}
+		reference = digest;
+	} else {
+		reference = tag;
+	}
+
+	return { registry, repository, reference };
+}
+
+export function unparseImageName(image: ImageDescriptor): string {
 	const { registry, repository, reference } = image;
 	const sep = reference.startsWith('sha256:') ? '@' : ':';
 	return `${registry}/${repository}${sep}${reference}`;
