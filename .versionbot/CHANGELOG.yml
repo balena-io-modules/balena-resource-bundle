@@ -1,4 +1,16 @@
 - commits:
+    - subject: Add helpers for working with Docker images
+      hash: b61d135016da6cee850dfb5fcca857a1e841d730
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.3.1
+  title: ""
+  date: 2024-06-01T14:03:53.425Z
+- commits:
     - subject: Simplify public API and usage
       hash: 9461b40019704dca995615fe9999629afe662d12
       body: ""
