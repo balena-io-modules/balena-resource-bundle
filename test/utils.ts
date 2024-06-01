@@ -39,32 +39,14 @@ export function createTarBundle(contents) {
 	return pack;
 }
 
-export function createEmptyTestBundle(contents) {
+export async function createEmptyBundle(contents) {
 	const pack = createTarBundle(contents);
 
 	pack.finalize();
 
-	const readable = bundle.open(pack, 'foo@1');
+	const readable = await bundle.read(pack, 'foo@1');
 
 	return readable;
-}
-
-export async function streamToString(source: stream.Readable): Promise<string> {
-	let str = '';
-
-	return new Promise((resolve, reject) => {
-		source.on('data', (data) => {
-			str += data.toString();
-		});
-
-		source.on('end', () => resolve(str));
-
-		source.on('error', reject);
-	});
-}
-
-export function stringToStream(str: string): stream.Readable {
-	return stream.Readable.from([str], { objectMode: false });
 }
 
 export function repeatedStringToStream(

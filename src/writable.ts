@@ -8,130 +8,103 @@ import {
 	CONTENTS_JSON,
 	CONTENTS_SIG,
 	RESOURCES_DIR,
-} from './types';
+} from './constants';
 import * as signer from './signer';
-import { toPrettyJSON } from './utils';
+import { toPrettyJSON, getResourceDescriptor } from './utils';
 
 export interface SignOptions {
 	privateKey: string;
 }
 
-export type WritableBundleOptions<T> = Omit<Contents<T>, 'version'> & {
+export interface WritableBundleOptions<T> {
+	type: string;
+	manifest: T;
 	sign?: SignOptions;
-};
+}
 
 export class WritableBundle<T> {
-	private pack: tar.Pack;
+	private options: WritableBundleOptions<T>;
 	private resources: Resource[];
-	private packError: Error | undefined;
-	private addedResources: Set<string>;
 
 	public constructor(options: WritableBundleOptions<T>) {
-		const resourceIds = options.resources.map(({ id }) => id);
-		const uniqueIds = new Set(resourceIds);
-		if (resourceIds.length !== uniqueIds.size) {
-			const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
+		this.options = options;
+		this.resources = [];
+	}
+
+	public addResource(resource: Resource) {
+		if (this.resources.some((p) => p.id === resource.id)) {
 			throw new Error(
-				`Duplicate resource IDs are not allowed: ${duplicateIds}`,
+				`A resource with ID "${resource.id}" has already been added`,
 			);
 		}
+		this.resources.push(resource);
+	}
+
+	public finalize(): stream.Readable {
+		const out = new stream.PassThrough();
 
 		const pack = tar.pack();
-
 		pack.on('error', (err) => {
-			this.packError = err;
+			if (err != null) {
+				out.emit('error', err);
+			}
 		});
 
+		// Add contents.json
 		const contents: Contents<T> = {
 			version: CURRENT_BUNDLE_VERSION,
-			type: options.type,
-			manifest: options.manifest,
-			resources: options.resources,
+			type: this.options.type,
+			manifest: this.options.manifest,
+			resources: this.resources.map(getResourceDescriptor),
 		};
 
 		const contentsJson = toPrettyJSON(contents);
-
 		pack.entry({ name: CONTENTS_JSON }, contentsJson);
 
+		// Add contents.sig
 		const contentsSig: Signature = { digest: sha256sum(contentsJson) };
-		if (options.sign != null) {
+		if (this.options.sign != null) {
 			contentsSig.signature = signer.sign(
-				options.sign.privateKey,
+				this.options.sign.privateKey,
 				contentsJson,
 			);
 		}
 
 		const contentsSigJson = toPrettyJSON(contentsSig);
-
 		pack.entry({ name: CONTENTS_SIG }, contentsSigJson);
 
-		this.pack = pack;
-		this.resources = options.resources;
-		this.addedResources = new Set();
-	}
-
-	public addResource(id: string, data: stream.Readable) {
-		const resource = this.resources.find((res) => res.id === id);
-
-		if (resource == null) {
-			throw new Error(`Adding unknown resource "${id}"`);
+		// Add resources/
+		for (const resource of this.resources) {
+			const name = `${RESOURCES_DIR}/` + sha256sum(resource.id);
+			const entry = pack.entry({ name, size: resource.size });
+			const hasher = new Hasher(resource.digest);
+			stream.pipeline(resource.data, hasher, entry, (err) => {
+				if (err != null) {
+					out.emit('error', err);
+				}
+			});
 		}
 
-		if (this.addedResources.has(id)) {
-			throw new Error(`Resource "${id}" is already added`);
-		}
+		pack.finalize();
 
-		const { size, digest } = resource;
-
-		const hasher = new Hasher(digest);
-
-		const name = `${RESOURCES_DIR}/` + sha256sum(id);
-		const entry = this.pack.entry({ name, size });
-
-		stream.pipeline(data, hasher, entry, () => {
-			// noop
+		stream.pipeline(pack, out, (err) => {
+			if (err != null) {
+				out.emit('error', err);
+			}
 		});
 
-		this.addedResources.add(id);
+		return out;
 	}
-
-	public finalize() {
-		const pendingResources = this.resources.filter(
-			({ id }) => !this.addedResources.has(id),
-		);
-
-		if (pendingResources.length > 0) {
-			throw new Error(
-				`Missing resources: ${pendingResources.map(({ id }) => id).join(', ')}`,
-			);
-		}
-
-		this.pack.finalize();
-
-		if (this.packError != null) {
-			throw this.packError;
-		}
-	}
-
-	public get stream(): stream.Readable {
-		return this.pack;
-	}
-}
-
-export interface ResourceData {
-	id: string;
-	data: stream.Readable;
 }
 
 export type CreateOptions<T> = WritableBundleOptions<T> & {
-	resourceData: ResourceData[];
+	resources: Resource[];
 };
 
 export function create<T>(options: CreateOptions<T>): stream.Readable {
 	const bundle = new WritableBundle(options);
-	for (const { id, data } of options.resourceData) {
-		bundle.addResource(id, data);
+	for (const resource of options.resources) {
+		bundle.addResource(resource);
 	}
-	bundle.finalize();
-	return bundle.stream;
+	return bundle.finalize();
 }

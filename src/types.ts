@@ -1,22 +1,25 @@
-export const CURRENT_BUNDLE_VERSION = '1';
-export const CONTENTS_JSON = 'contents.json';
-export const CONTENTS_SIG = 'contents.sig';
-export const RESOURCES_DIR = 'resources';
+import type * as stream from 'node:stream';
 
-// TODO: Tansfer back schema to specification on Fibery
-export interface Resource {
+export interface ResourceDescriptor {
 	id: string;
 	aliases?: string[];
 	size: number;
 	digest: string;
 	type?: string;
+	metadata?: {
+		[key: string]: any;
+	};
+}
+
+export interface Resource extends ResourceDescriptor {
+	data: stream.Readable;
 }
 
 export interface Contents<T> {
 	version: string;
 	type: string;
 	manifest: T;
-	resources: Resource[];
+	resources: ResourceDescriptor[];
 }
 
 export interface Signature {

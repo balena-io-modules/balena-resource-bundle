@@ -2,7 +2,7 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 
-import { createEmptyTestBundle } from './utils';
+import { createEmptyBundle } from './utils';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -24,10 +24,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "version" in contents.json');
@@ -50,10 +48,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -78,10 +74,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "type" in contents.json');
@@ -104,10 +98,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "manifest" in contents.json');
@@ -122,10 +114,8 @@ describe('contents.json validation', () => {
 			// resources: [...]
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Missing "resources" in contents.json');
@@ -147,10 +137,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -174,10 +162,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -200,10 +186,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -228,10 +212,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -261,10 +243,8 @@ describe('contents.json validation', () => {
 			],
 		};
 
-		const readable = createEmptyTestBundle(contents);
-
 		try {
-			await readable.manifest();
+			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(

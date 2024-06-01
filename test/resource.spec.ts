@@ -5,14 +5,14 @@ import * as stream from 'node:stream';
 
 import * as bundle from '../src';
 
-import { ErroringStream, stringToStream } from './utils';
+import { ErroringStream } from './utils';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 describe('read/write resources failures', () => {
 	it('add resource with stream throwing an error', async () => {
-		const myBundle = new bundle.WritableBundle({
+		const myBundleStream = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -21,15 +21,13 @@ describe('read/write resources failures', () => {
 					size: 5,
 					digest:
 						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					data: new ErroringStream('hello'),
 				},
 			],
 		});
 
-		const hello = new ErroringStream('hello');
-		myBundle.addResource('hello', hello);
-
 		try {
-			await stream.promises.finished(myBundle.stream);
+			await stream.promises.finished(myBundleStream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('ErroringStream is throwing an error');
@@ -37,7 +35,7 @@ describe('read/write resources failures', () => {
 	});
 
 	it('add resource with wrong size', async () => {
-		const myBundle = new bundle.WritableBundle({
+		const myBundleStream = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
 			resources: [
@@ -46,43 +44,16 @@ describe('read/write resources failures', () => {
 					size: 100,
 					digest:
 						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					data: bundle.stringToStream('hello'),
 				},
 			],
 		});
 
-		const hello = stringToStream('hello');
-		myBundle.addResource('hello', hello);
-		myBundle.finalize();
-
 		try {
-			await stream.promises.finished(myBundle.stream);
+			await stream.promises.finished(myBundleStream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Size mismatch');
-		}
-	});
-
-	it('add resource with wrong ID', async () => {
-		const myBundle = new bundle.WritableBundle({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		});
-
-		const hello = stringToStream('hello');
-
-		try {
-			myBundle.addResource('world', hello);
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Adding unknown resource "world"');
 		}
 	});
 
@@ -90,85 +61,32 @@ describe('read/write resources failures', () => {
 		const myBundle = new bundle.WritableBundle({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
 		});
 
-		const hello = stringToStream('hello');
-		myBundle.addResource('hello', hello);
+		const descriptor = {
+			id: 'hello',
+			size: 5,
+			digest:
+				'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+		};
 
-		const hello2 = stringToStream('hello');
-
-		try {
-			myBundle.addResource('hello', hello2);
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Resource "hello" is already added');
-		}
-	});
-
-	it('finalize without all resources added', async () => {
-		const myBundle = new bundle.WritableBundle({
-			type: 'foo@1',
-			manifest: ['hello.txt', 'world.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-				{
-					id: 'world',
-					size: 5,
-					digest:
-						'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
-				},
-			],
+		const hello = bundle.stringToStream('hello');
+		myBundle.addResource({
+			...descriptor,
+			data: hello,
 		});
 
-		const hello = stringToStream('hello');
-		myBundle.addResource('hello', hello);
+		const hello2 = bundle.stringToStream('hello');
 
 		try {
-			myBundle.finalize();
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Missing resources: world');
-		}
-	});
-
-	it('create bundle with duplicated resource IDs', async () => {
-		try {
-			new bundle.WritableBundle({
-				type: 'foo@1',
-				manifest: ['hello.txt', 'world.txt'],
-				resources: [
-					{
-						id: 'hello',
-						size: 5,
-						digest:
-							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-					},
-					{
-						id: 'hello',
-						size: 5,
-						digest:
-							'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
-					},
-				],
+			myBundle.addResource({
+				...descriptor,
+				data: hello2,
 			});
-
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Duplicate resource IDs are not allowed: hello',
+				'A resource with ID "hello" has already been added',
 			);
 		}
 	});
