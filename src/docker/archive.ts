@@ -45,13 +45,20 @@ export class DockerArchive {
 	}
 
 	public finalize(): stream.Readable {
+		const out = new stream.PassThrough();
+
 		const pack = tar.pack();
+		pack.on('error', (err) => {
+			if (err != null) {
+				out.emit('error', err);
+			}
+		});
 
 		const repositories: DockerArchiveRepositories = {};
 		const manifests: DockerArchiveManifest[] = [];
 		for (const { manifest, descriptor } of this.images) {
 			const blobNames = manifest.layers.map(
-				(layer: any) => `${layer.digest}.tar.gz`,
+				(layer) => `${layer.digest}.tar.gz`,
 			);
 			const configName = `${manifest.config.digest.split(':')[1]}.json`;
 			manifests.push({
@@ -87,6 +94,12 @@ export class DockerArchive {
 
 		pack.finalize();
 
-		return pack;
+		stream.pipeline(pack, out, (err) => {
+			if (err != null) {
+				out.emit('error', err);
+			}
+		});
+
+		return out;
 	}
 }
