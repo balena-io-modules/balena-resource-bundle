@@ -1,4 +1,20 @@
 - commits:
+    - subject: Discover authentication endpoint
+      hash: 66d02b19489973e50b6caa33a28e7d16100d11a9
+      body: |
+        Exported API for discovering the Docker registry authentication
+        service, realm and scopes
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.4.0
+  title: ""
+  date: 2024-06-12T08:31:21.925Z
+- commits:
     - subject: Expose helpers to parse and unparse image names
       hash: 4639f8bdc656ce67bdd2eb0a83d08f091619e999
       body: ""
