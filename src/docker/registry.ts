@@ -5,16 +5,80 @@ import { parse } from 'auth-header';
 import type { Image, ImageDescriptor, ImageManifest, ImageBlob } from './types';
 import type { Resource } from '../types';
 
+export interface Credentials {
+	username: string;
+	password: string;
+}
+
 export interface Authenticate {
 	realm: string;
 	service: string;
-	scope: string[]; // eg. [ '<repo1>:pull,push', '<repo2>:pull' ]
+}
+
+export type Scope = string; // eg. '<repo1>:pull,push' or '<repo2>:pull'
+
+/**
+ * @param images an array of descriptors that may need authentication when pulled.
+ */
+export async function discoverAuthenticate(
+	images: ImageDescriptor[],
+): Promise<[Authenticate, Scope[]] | undefined> {
+	const registries = new Set<string>();
+	images.forEach(({ registry }) => registries.add(registry));
+	if (registries.size > 1) {
+		throw new Error('All images must be of the same registry');
+	}
+
+	let authResult: Authenticate | undefined;
+	const scopes: Scope[] = [];
+	for (const image of images) {
+		const url = `https://${image.registry}/v2/${image.repository}/manifests/${image.reference}`;
+
+		const res = await fetch(url, {
+			headers: getDefaultHeaders(undefined),
+		});
+
+		if (res.ok) {
+			continue;
+		}
+
+		const authHeader = res.headers.get('www-authenticate');
+
+		if (authHeader == null) {
+			throw new Error(
+				`No 'www-authenticate' header present: ${res.status} ${res.statusText}`,
+			);
+		}
+
+		const [auth, scope] = parseAuthenticateHeader(authHeader);
+
+		if (authResult == null) {
+			authResult = auth;
+		}
+
+		if (
+			authResult.realm !== auth.realm ||
+			authResult.service !== auth.service
+		) {
+			throw new Error('Unexpected authenticate header');
+		}
+
+		scopes.push(...scope);
+	}
+
+	if (authResult == null) {
+		return;
+	}
+
+	return [authResult, scopes];
 }
 
 /**
  * @param header the www-authenticate header from a 401 registry response.
  */
-export function parseAuthenticateHeader(header: string): Authenticate {
+export function parseAuthenticateHeader(
+	header: string,
+): [Authenticate, Scope[]] {
 	let {
 		params: { realm, service, scope },
 	} = parse(header);
@@ -29,12 +93,7 @@ export function parseAuthenticateHeader(header: string): Authenticate {
 		scope = [scope];
 	}
 
-	return { realm, service, scope };
-}
-
-export interface Credentials {
-	username: string;
-	password: string;
+	return [{ realm, service }, scope];
 }
 
 /**
@@ -42,12 +101,13 @@ export interface Credentials {
  */
 export async function authenticate(
 	auth: Authenticate,
+	scopes: Scope[],
 	creds: Credentials,
 ): Promise<string> {
 	const url = new URL(auth.realm);
 	url.searchParams.append('account', creds.username);
 	url.searchParams.append('service', auth.service);
-	for (const scope of auth.scope) {
+	for (const scope of scopes) {
 		url.searchParams.append('scope', scope);
 	}
 
