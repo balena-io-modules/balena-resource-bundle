@@ -1,4 +1,18 @@
 - commits:
+    - subject: Adds support for Bearer authentication.
+      hash: c7fee6fd81ff93fef85d55b51337abc82104ebec
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Carlo Miguel F. Cruz <carloc@balena.io>
+        signed-off-by: Carlo Miguel F. Cruz <carloc@balena.io>
+      author: Carlo Miguel F. Cruz
+      nested: []
+  version: 0.4.1
+  title: ""
+  date: 2024-07-09T07:41:22.896Z
+- commits:
     - subject: Discover authentication endpoint
       hash: 66d02b19489973e50b6caa33a28e7d16100d11a9
       body: |
