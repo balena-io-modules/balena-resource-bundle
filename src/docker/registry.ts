@@ -5,10 +5,19 @@ import { parse } from 'auth-header';
 import type { Image, ImageDescriptor, ImageManifest, ImageBlob } from './types';
 import type { Resource } from '../types';
 
-export interface Credentials {
+export interface BasicAuth {
+	type: 'Basic';
 	username: string;
 	password: string;
 }
+
+export interface BearerAuth {
+	type: 'Bearer';
+	subject: string;
+	token: string;
+}
+
+export type Credentials = BasicAuth | BearerAuth;
 
 export interface Authenticate {
 	realm: string;
@@ -104,20 +113,35 @@ export async function authenticate(
 	scopes: Scope[],
 	creds: Credentials,
 ): Promise<string> {
+	let authType: string;
+	let subject: string;
+	let password: string;
+
+	if (creds.type === 'Basic') {
+		authType = 'Basic';
+		subject = creds.username;
+		password = creds.password;
+	} else {
+		authType = 'Bearer';
+		subject = creds.subject;
+		password = creds.token;
+	}
+
 	const url = new URL(auth.realm);
-	url.searchParams.append('account', creds.username);
+	url.searchParams.append('account', subject);
 	url.searchParams.append('service', auth.service);
 	for (const scope of scopes) {
 		url.searchParams.append('scope', scope);
 	}
 
-	const b64auth = Buffer.from(`${creds.username}:${creds.password}`).toString(
-		'base64',
-	);
+	const authToken =
+		authType === 'Bearer'
+			? password
+			: Buffer.from(`${subject}:${password}`).toString('base64');
 
 	const response = await fetch(url, {
 		headers: {
-			Authorization: `Basic ${b64auth}`,
+			Authorization: `${authType} ${authToken}`,
 		},
 	});
 
