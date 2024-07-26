@@ -26,6 +26,11 @@ export interface Authenticate {
 
 export type Scope = string; // eg. '<repo1>:pull,push' or '<repo2>:pull'
 
+export const ACCEPTED_MANIFEST_TYPES = [
+	'application/vnd.oci.image.manifest.v1+json',
+	'application/vnd.docker.distribution.manifest.v2+json',
+];
+
 /**
  * @param images an array of descriptors that may need authentication when pulled.
  */
@@ -302,12 +307,15 @@ async function fetchImageManifest(
 ): Promise<ImageManifest> {
 	const url = `https://${image.registry}/v2/${image.repository}/manifests/${image.reference}`;
 
-	const res = await fetch(url, {
-		headers: {
-			...getDefaultHeaders(token),
-			Accept: 'application/vnd.docker.distribution.manifest.v2+json',
-		},
-	});
+	const headers = new Headers([
+		...Object.entries(getDefaultHeaders(token)),
+		...ACCEPTED_MANIFEST_TYPES.map((type): [string, string] => [
+			'Accept',
+			type,
+		]),
+	]);
+
+	const res = await fetch(url, { headers });
 
 	if (!res.ok) {
 		throw new Error(
@@ -323,10 +331,7 @@ async function fetchImageManifest(
 		);
 	}
 
-	if (
-		manifest.mediaType !==
-		'application/vnd.docker.distribution.manifest.v2+json'
-	) {
+	if (!ACCEPTED_MANIFEST_TYPES.includes(manifest.mediaType)) {
 		throw new Error(
 			`Unexpected manifest media type ${manifest.mediaType} (${unparseImageName(image)})`,
 		);
