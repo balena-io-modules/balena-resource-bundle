@@ -10,6 +10,7 @@
     "noUnusedLocals": true,
     "preserveConstEnums": true,
     "declaration": true,
+    "declarationMap": true,
     "removeComments": true,
     "sourceMap": true,
     "strictNullChecks": true
