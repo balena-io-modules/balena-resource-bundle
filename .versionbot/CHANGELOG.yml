@@ -1,4 +1,20 @@
 - commits:
+    - subject: Optional credentials for registry authentication
+      hash: 4f50878783a3d9497f4974ea0d5f2b232c4d0ce3
+      body: >
+        Allows authenticating to registries that do not require credentials like
+        Docker Hub.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.4.3
+  title: ""
+  date: 2024-07-26T12:37:15.823Z
+- commits:
     - subject: Set declarationMap in tsconfig.json
       hash: f36d5876da99649e1c6964e6d3162610989a3e61
       body: |
