@@ -111,39 +111,41 @@ export function parseAuthenticateHeader(
 export async function authenticate(
 	auth: Authenticate,
 	scopes: Scope[],
-	creds: Credentials,
+	creds?: Credentials,
 ): Promise<string> {
-	let authType: string;
-	let subject: string;
-	let password: string;
+	let authType: string | undefined;
+	let subject: string | undefined;
+	let authToken: string | undefined;
 
-	if (creds.type === 'Basic') {
-		authType = 'Basic';
-		subject = creds.username;
-		password = creds.password;
-	} else {
-		authType = 'Bearer';
-		subject = creds.subject;
-		password = creds.token;
+	if (creds != null) {
+		if (creds.type === 'Basic') {
+			authType = 'Basic';
+			subject = creds.username;
+			authToken = Buffer.from(`${subject}:${creds.password}`).toString(
+				'base64',
+			);
+		} else {
+			authType = 'Bearer';
+			subject = creds.subject;
+			authToken = creds.token;
+		}
 	}
 
 	const url = new URL(auth.realm);
-	url.searchParams.append('account', subject);
+	if (subject != null) {
+		url.searchParams.append('account', subject);
+	}
 	url.searchParams.append('service', auth.service);
 	for (const scope of scopes) {
 		url.searchParams.append('scope', scope);
 	}
 
-	const authToken =
-		authType === 'Bearer'
-			? password
-			: Buffer.from(`${subject}:${password}`).toString('base64');
+	const headers: { [name: string]: string } = {};
+	if (authType != null && authToken != null) {
+		headers['Authorization'] = `${authType} ${authToken}`;
+	}
 
-	const response = await fetch(url, {
-		headers: {
-			Authorization: `${authType} ${authToken}`,
-		},
-	});
+	const response = await fetch(url, { headers });
 
 	if (!response.ok) {
 		throw new Error(
