@@ -1,4 +1,23 @@
 - commits:
+    - subject: Also accept OCI manifests
+      hash: f5bdd6d4af0473a568fcb4e4c6c3b6f224af80fb
+      body: >
+        Also accept the OCI manifest type
+        `application/vnd.oci.image.manifest.v1+json` as it has the same
+        structure like the currently supported
+        `application/vnd.docker.distribution.manifest.v2+json`. Docker Hub uses
+        it now instead of the older Docker manifest type.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.4.4
+  title: ""
+  date: 2024-07-26T13:01:34.321Z
+- commits:
     - subject: Optional credentials for registry authentication
       hash: 4f50878783a3d9497f4974ea0d5f2b232c4d0ce3
       body: >
