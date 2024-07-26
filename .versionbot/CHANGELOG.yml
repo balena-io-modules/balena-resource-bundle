@@ -1,4 +1,19 @@
 - commits:
+    - subject: Set declarationMap in tsconfig.json
+      hash: f36d5876da99649e1c6964e6d3162610989a3e61
+      body: |
+        This allows VS Code to navigate between .ts files easier.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.4.2
+  title: ""
+  date: 2024-07-26T09:59:17.714Z
+- commits:
     - subject: Adds support for Bearer authentication.
       hash: c7fee6fd81ff93fef85d55b51337abc82104ebec
       body: ""
