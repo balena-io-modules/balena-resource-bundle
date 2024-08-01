@@ -159,7 +159,7 @@ export async function authenticate(
 
 // Internal
 
-function getDefaultHeaders(token?: string): { [name: string]: string } {
+export function getDefaultHeaders(token?: string): { [name: string]: string } {
 	const headers: any = {
 		'Accept-Encoding': 'gzip',
 		'Docker-Distribution-Api-Version': 'registry/2.0',
