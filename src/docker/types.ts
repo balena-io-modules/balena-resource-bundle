@@ -20,4 +20,5 @@ export interface ImageDescriptor {
 export interface Image {
 	descriptor: ImageDescriptor;
 	manifest: ImageManifest;
+	manifestBase64: string;
 }

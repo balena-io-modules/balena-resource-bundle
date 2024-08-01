@@ -216,9 +216,9 @@ export async function fetchImages(
 
 	await Promise.all(
 		images.map(async (image) => {
-			const manifest = await fetchImageManifest(image, token);
+			const [manifest, manifestBase64] = await fetchImageManifest(image, token);
 
-			result.images.push({ descriptor: image, manifest });
+			result.images.push({ descriptor: image, manifest, manifestBase64 });
 
 			const blobs = [manifest.config, ...manifest.layers];
 
@@ -304,7 +304,7 @@ export function unparseImageName(image: ImageDescriptor): string {
 async function fetchImageManifest(
 	image: ImageDescriptor,
 	token?: string,
-): Promise<ImageManifest> {
+): Promise<[ImageManifest, string]> {
 	const url = `https://${image.registry}/v2/${image.repository}/manifests/${image.reference}`;
 
 	const headers = new Headers([
@@ -323,7 +323,9 @@ async function fetchImageManifest(
 		);
 	}
 
-	const manifest: ImageManifest = await res.json();
+	const manifestText = await res.text();
+	const manifestBase64 = Buffer.from(manifestText).toString('base64');
+	const manifest: ImageManifest = JSON.parse(manifestText);
 
 	if (manifest.schemaVersion !== 2) {
 		throw new Error(
@@ -337,7 +339,7 @@ async function fetchImageManifest(
 		);
 	}
 
-	return manifest;
+	return [manifest, manifestBase64];
 }
 
 async function fetchImageBlob(
