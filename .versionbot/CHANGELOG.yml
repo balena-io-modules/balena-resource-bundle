@@ -1,4 +1,22 @@
 - commits:
+    - subject: Embed image manifests in base64 form
+      hash: b6e3db9ed0980e63f4f155f08ace9ae44b4e4f26
+      body: >
+        Include image manifests in base64 form when fetching images from a
+        registry. The original manifest must be retained to enable pushing
+        images back to a registry. When the image reference is in sha256 form,
+        it is equivalent to the original manifest checksum.
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.5.0
+  title: ""
+  date: 2024-08-01T10:04:38.678Z
+- commits:
     - subject: Also accept OCI manifests
       hash: f5bdd6d4af0473a568fcb4e4c6c3b6f224af80fb
       body: >
