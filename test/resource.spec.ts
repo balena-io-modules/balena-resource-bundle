@@ -58,11 +58,6 @@ describe('read/write resources failures', () => {
 	});
 
 	it('add resource which was already added', async () => {
-		const myBundle = new bundle.WritableBundle({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-		});
-
 		const descriptor = {
 			id: 'hello',
 			size: 5,
@@ -70,24 +65,24 @@ describe('read/write resources failures', () => {
 				'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
 		};
 
-		const hello = bundle.stringToStream('hello');
-		myBundle.addResource({
-			...descriptor,
-			data: hello,
-		});
-
-		const hello2 = bundle.stringToStream('hello');
-
 		try {
-			myBundle.addResource({
-				...descriptor,
-				data: hello2,
+			bundle.create({
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						...descriptor,
+						data: bundle.stringToStream('hello'),
+					},
+					{
+						...descriptor,
+						data: bundle.stringToStream('hello'),
+					},
+				],
 			});
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal(
-				'A resource with ID "hello" has already been added',
-			);
+			expect(error.message).to.equal('Found duplicate resource IDs: hello');
 		}
 	});
 });

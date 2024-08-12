@@ -25,42 +25,7 @@ interface ConcatManifest {
 
 ### Creating a bundle
 
-To create a bundle you create a `WritableBundle` instance that will allow you to add resources to the bundle and ultimately stream its contents to whatever destination you desire.
-
-```typescript
-import * as fs from 'node:fs';
-import * as stream from 'node:stream';
-import * as bundle from '@balena/resource-bundle';
-
-const myBundle = new bundle.WritableBundle({
-  type: 'com.example.concat@1',
-  manifest: {
-    files: ['a.txt', 'b.txt'],
-    separator: ' ',
-  },
-});
-
-myBundle.addResource({
-  id: 'a.txt',
-  size: 5,
-  digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-  data: bundle.stringToStream('hello'),
-});
-
-myBundle.addResource({
-  id: 'b.txt',
-  size: 5,
-  digest: 'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
-  data: bundle.stringToStream('world'),
-});
-
-const myBundleStream = myBundle.finalize();
-
-const dest = fs.createWriteStream('./mybundle.tar');
-await stream.pipeline(myBundleStream, dest);
-```
-
-If you have your resource streams around ready to go, you can use the convenience `create` function, which is equivalent to creating a `WritableBundle`, calling `addResource` for each resource and `finalize` at the end:
+To create a bundle, use `create` to get a stream that you can use to pipe the bundle contents to whatever destination you desire.
 
 ```typescript
 import * as fs from 'node:fs';

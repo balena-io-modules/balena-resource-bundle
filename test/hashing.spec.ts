@@ -73,21 +73,19 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with unknown digest algorithm', async () => {
-		const writable = new bundle.WritableBundle({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-		});
-
-		writable.addResource({
-			id: 'hello.txt',
-			size: 5,
-			digest: 'unk256:aaaaaaaa',
-			data: bundle.stringToStream('hello'),
-		});
-
 		try {
-			// TODO: this should throw on addResource instead
-			writable.finalize();
+			bundle.create({
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello.txt',
+						size: 5,
+						digest: 'unk256:aaaaaaaa',
+						data: bundle.stringToStream('hello'),
+					},
+				],
+			});
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Digest method not supported');
@@ -95,21 +93,19 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with malformed digest', async () => {
-		const writable = new bundle.WritableBundle({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-		});
-
-		writable.addResource({
-			id: 'hello.txt',
-			size: 5,
-			digest: 'sha256_aaaaaaaaaaaaaaaa',
-			data: bundle.stringToStream('hello'),
-		});
-
 		try {
-			// TODO: this should throw on addResource instead
-			writable.finalize();
+			bundle.create({
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello.txt',
+						size: 5,
+						digest: 'sha256_aaaaaaaaaaaaaaaa',
+						data: bundle.stringToStream('hello'),
+					},
+				],
+			});
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(

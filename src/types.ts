@@ -15,6 +15,14 @@ export interface Resource extends ResourceDescriptor {
 	data: stream.Readable;
 }
 
+export interface BundleDescription<T> {
+	type: string;
+	manifest: T;
+	resources: Resource[];
+}
+
+// Internal types
+
 export interface Contents<T> {
 	version: string;
 	type: string;

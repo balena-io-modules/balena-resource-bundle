@@ -48,15 +48,3 @@ export async function createEmptyBundle(contents) {
 
 	return readable;
 }
-
-export function repeatedStringToStream(
-	str: string,
-	count: number,
-): stream.Readable {
-	function* generateRepeat() {
-		for (let i = 0; i < count; i++) {
-			yield str;
-		}
-	}
-	return stream.Readable.from(generateRepeat(), { objectMode: false });
-}
