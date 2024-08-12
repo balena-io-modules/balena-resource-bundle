@@ -60,7 +60,7 @@ await stream.pipeline(myBundleStream, dest);
 
 ### Reading a bundle
 
-You can read a resource bundle and extract the manifest and resources like so:
+You can open a resource bundle and extract the manifest and resources like so:
 
 ```typescript
 import * as fs from 'node:fs';
@@ -68,7 +68,7 @@ import * as stream from 'node:stream';
 import * as bundle from '@balena/resource-bundle';
 
 const src = fs.createReadStream('./mybundle.tar');
-const myBundle = await bundle.read<ConcatManifest>(src, 'com.example.concat@1');
+const myBundle = await bundle.open<ConcatManifest>(src, 'com.example.concat@1');
 
 const manifest = myBundle.manifest;
 // > { files: ['a.txt', 'b.txt'], separator: ' ' }

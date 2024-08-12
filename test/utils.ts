@@ -44,7 +44,7 @@ export async function createEmptyBundle(contents) {
 
 	pack.finalize();
 
-	const readable = await bundle.read(pack, 'foo@1');
+	const readable = await bundle.open(pack, 'foo@1');
 
 	return readable;
 }

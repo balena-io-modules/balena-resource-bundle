@@ -32,7 +32,7 @@ describe('deduplication tests', () => {
 			],
 		});
 
-		const readableBundle = await bundle.read(myBundleStream, 'foo@1');
+		const readableBundle = await bundle.open(myBundleStream, 'foo@1');
 		const manifest = readableBundle.manifest;
 
 		const resources = new Array<string>();

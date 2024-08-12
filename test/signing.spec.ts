@@ -60,7 +60,9 @@ describe('signing tests', () => {
 			},
 		);
 
-		const readable = await bundle.read(writableStream, 'foo@1', PUBLIC_KEY);
+		const readable = await bundle.open(writableStream, 'foo@1', {
+			publicKey: PUBLIC_KEY,
+		});
 		const manifest = readable.manifest;
 
 		expect(manifest).to.eql(['hello.txt']);
@@ -89,7 +91,7 @@ describe('signing tests', () => {
 		);
 
 		try {
-			await bundle.read(writableStream, 'foo@1');
+			await bundle.open(writableStream, 'foo@1');
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -121,7 +123,7 @@ describe('signing tests', () => {
 		);
 
 		try {
-			await bundle.read(writableStream, 'foo@1', 'BAD KEY');
+			await bundle.open(writableStream, 'foo@1', { publicKey: 'BAD KEY' });
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.contain('unsupported');
@@ -163,7 +165,7 @@ describe('signing tests', () => {
 		});
 
 		try {
-			await bundle.read(writableStream, 'foo@1', publicKey);
+			await bundle.open(writableStream, 'foo@1', { publicKey });
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('contents.json has invalid signature');

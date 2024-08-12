@@ -2,7 +2,7 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { Hasher, sha256sum } from './hasher';
-import type { Contents, Resource } from './types';
+import type { BundleDescription, Contents, Resource } from './types';
 import {
 	CONTENTS_JSON,
 	CONTENTS_SIG,
@@ -140,18 +140,15 @@ function makeEntriesIterator(extract: tar.Extract) {
 	};
 }
 
-export interface ReadableBundle<T> {
-	readonly version: string;
-	readonly type: string;
-	readonly manifest: T;
-	readonly resources: Resource[];
+export interface OpenOptions {
+	publicKey?: string;
 }
 
-export async function read<T>(
+export async function open<T>(
 	input: stream.Readable,
 	type: string,
-	publicKey?: string,
-): Promise<ReadableBundle<T>> {
+	options: OpenOptions | undefined = {},
+): Promise<BundleDescription<T>> {
 	const extract = tar.extract();
 	const entries = makeEntriesIterator(extract);
 
@@ -196,14 +193,14 @@ export async function read<T>(
 		throw new Error(`${CONTENTS_JSON} appears to be corrupted`);
 	}
 	if (signature != null) {
-		if (publicKey == null) {
+		if (options.publicKey == null) {
 			throw new Error('Signed bundle requires a public key to be provided');
 		}
-		if (!signer.isValid(publicKey, signature, contentsStr)) {
+		if (!signer.isValid(options.publicKey, signature, contentsStr)) {
 			throw new Error(`${CONTENTS_JSON} has invalid signature`);
 		}
 	} else {
-		if (publicKey != null) {
+		if (options.publicKey != null) {
 			throw new Error('Public key provided but bundle is missing signature');
 		}
 	}
@@ -295,7 +292,6 @@ export async function read<T>(
 	});
 
 	return {
-		version: contents.version,
 		type: contents.type,
 		manifest: contents.manifest,
 		resources,
