@@ -340,7 +340,7 @@ const myBundleStream = bundle.create({
 await stream.pipeline(myBundleStream, fs.createWriteStream('./mybundle.tar'));
 ```
 
-Reading an image set from a bundle:
+Reading an image set from a bundle and pushing the images to a new registry:
 
 ```typescript
 import * as bundle from '@balena/resource-bundle';
@@ -349,11 +349,22 @@ const { ImageSetManifest } = bundle.docker;
 
 const myBundle = await bundle.open(myBundleStream, 'mybundletype');
 
-for (const descriptor of myBundle.resources) {
-  const resource = myBundle.readMultipart<ImageSetManifest>(descriptor);
-  const imageSet = ImageSet.fromBundle(resource);
-  // ...
+// read the image set from the bundle
+const descriptor = myBundle.resources.find(
+  (resource) => resource.id === 'my-image-set',
+);
+if (descriptor == null) {
+  throw new Error('Invalid bundle; does not contain expected images');
 }
+const resource = myBundle.readMultipart<ImageSetManifest>(descriptor);
+const imageSet = ImageSet.fromBundle(resource);
+
+// rename images to push them to a new registry or under different names
+imageSet.images.forEach((image) =>
+  imageSet.tag(image, { ...image, registry: 'myregistry.com' }),
+);
+
+await imageSet.push();
 ```
 
 ## Resource Bundle format

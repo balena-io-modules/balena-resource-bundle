@@ -9,4 +9,3 @@ export {
 	discoverAuthenticate,
 	authenticate,
 } from './registry';
-export * from './push';
