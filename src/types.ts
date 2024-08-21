@@ -30,11 +30,9 @@ export type BundleDescription<ManifestType, ResourceType = Resource> = {
 
 // Internal types
 
-export type Contents<ManifestType> = {
-	version: string;
-	type: string;
-	manifest: ManifestType;
-	resources: Resource[];
+export type Envelope<ManifestType> = {
+	schemaVersion: string;
+	contents: BundleDescription<ManifestType, Resource>;
 };
 
 export type Signature = {

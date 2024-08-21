@@ -37,16 +37,18 @@ describe('hash failures', () => {
 
 	it('read resource with bad hash', async () => {
 		const pack = createTarBundle({
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest: 'sha256:deadbeef',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest: 'sha256:deadbeef',
+					},
+				],
+			},
 		});
 
 		pack.entry(

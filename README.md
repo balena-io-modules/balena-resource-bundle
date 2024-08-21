@@ -132,34 +132,39 @@ A JSON file describing the contents of the bundle. This file must be added first
 
 ```json
 {
-  "version": 1,
-  "type": "com.example.concat@1",
-  "manifest": {
-    "files": [ "a.txt", "b.txt" ],
-    "separator": " "
-  },
-  "resources": [
-    {
-      "id": "a.txt",
-      "size": 567,
-      "digest": "sha256:deadbeef"
+  "schemaVersion": 1,
+  "contents": {
+    "type": "com.example.concat@1",
+    "manifest": {
+      "separator": " "
     },
-    {
-      "id": "b.txt",
-      "size": 765,
-      "digest": "sha256:cafebabe"
-    }
-  ]
+    "resources": [
+      {
+        "id": "a.txt",
+        "size": 567,
+        "digest": "sha256:deadbeef"
+      },
+      {
+        "id": "b.txt",
+        "size": 765,
+        "digest": "sha256:cafebabe"
+      }
+    ]
+  }
 }
 ```
 
-#### `version`
+#### `schemaVersion`
 
 The file format version; integer; currently 1. This is not SemVer, only a single integer is supported.
 
 The format is allowed to be extended with new attributes and files without bumping the version. Clients must ignore attributes and files that they don't know how to handle and only work with those they do.
 
-#### `type`
+#### `contents`
+
+The contents dictionary fully describes the bundle contents.
+
+#### `contents.type`
 
 A string describing the kind of payload contained in the bundle, which in turn signifies what backend can be used to work with it (eg. “release”, "docker", "binary"), as well as its manifest schema version (eg. "release@6").
 
@@ -167,11 +172,11 @@ The exact format of the type key is `<backend-identifier>@<manifest-version>` bu
 
 For example, `type: "com.example.concat@6"` signifies that the payload is of type "concat" in `example.com` organization's namespace and its manifest is of version 6 (could also be "4.1" or "v5.3.2" or even "bar").
 
-#### `manifest`
+#### `contents.manifest`
 
-This is type-specific and it can be any valid JSON type. It's important to note that changing the schema of this attribute and, hence, its type version, does not propagate as a change to the file format version (ie. the `version` key).
+This is type-specific and it can be any valid JSON type. It's important to note that changing the schema of this attribute and, hence, its type version, does not propagate as a change to the file format version (ie. the `schemaVersion` key).
 
-#### `resources`
+#### `contents.resources`
 
 An array of dictionaries describing resources contained in the bundle. The schema format looks like this:
 
@@ -199,7 +204,7 @@ The `/contents.json` file requires checksums of the bundle's resources (ie. the 
 
 ### `./resources` directory
 
-Contains the payload, as a series of blobs named after the SHA256 digest of their respective resource ID.
+Contains the payload, as a series of blobs named after the SHA256 digest of their respective resource ID. Blobs are ordered in the same order as listed in `contents.resources`; this is important to enable streaming a bundle.
 
 
 ## License

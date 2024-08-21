@@ -8,42 +8,48 @@ chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 describe('contents.json validation', () => {
-	it('read contents.json with missing version', async () => {
+	it('read contents.json with missing schemaVersion', async () => {
 		const contents = {
-			// version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
+			// schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
 		};
 
 		try {
 			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal('Missing "version" in contents.json');
+			expect(error.message).to.equal(
+				'Missing "schemaVersion" in contents.json',
+			);
 		}
 	});
 
-	it('read contents.json with wrong version', async () => {
+	it('read contents.json with wrong schemaVersion', async () => {
 		const contents = {
-			version: '2',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
+			schemaVersion: '2',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
 		};
 
 		try {
@@ -58,79 +64,44 @@ describe('contents.json validation', () => {
 
 	it('read contents.json with missing type', async () => {
 		const contents = {
-			version: '1',
-			// type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				// type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
 		};
 
 		try {
 			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal('Missing "type" in contents.json');
+			expect(error.message).to.equal('Missing "type" in bundle description');
 		}
 	});
 
 	it('read contents.json with missing manifest', async () => {
 		const contents = {
-			version: '1',
-			type: 'foo@1',
-			// manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
-		};
-
-		try {
-			await createEmptyBundle(contents);
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Missing "manifest" in contents.json');
-		}
-	});
-
-	it('read contents.json with missing resources', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			// resources: [...]
-		};
-
-		try {
-			await createEmptyBundle(contents);
-			expect.fail('Unreachable');
-		} catch (error) {
-			expect(error.message).to.equal('Missing "resources" in contents.json');
-		}
-	});
-
-	it('read contents.json with missing resource id', async () => {
-		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					// id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				// manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
 		};
 
 		try {
@@ -138,24 +109,73 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Missing "id" in "resources" of contents.json',
+				'Missing "manifest" in bundle description',
+			);
+		}
+	});
+
+	it('read contents.json with missing resources', async () => {
+		const contents = {
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				// resources: [...]
+			},
+		};
+
+		try {
+			await createEmptyBundle(contents);
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Missing "resources" in bundle description',
+			);
+		}
+	});
+
+	it('read contents.json with missing resource id', async () => {
+		const contents = {
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						// id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
+		};
+
+		try {
+			await createEmptyBundle(contents);
+			expect.fail('Unreachable');
+		} catch (error) {
+			expect(error.message).to.equal(
+				'Missing "id" in "resources" of bundle description',
 			);
 		}
 	});
 
 	it('read contents.json with missing resource size', async () => {
 		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					// size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						// size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
 		};
 
 		try {
@@ -163,23 +183,25 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Missing "size" in "resources" of contents.json',
+				'Missing "size" in "resources" of bundle description',
 			);
 		}
 	});
 
 	it('read contents.json with missing resource digest', async () => {
 		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					// digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						// digest: 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
 		};
 
 		try {
@@ -187,24 +209,26 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Missing "digest" in "resources" of contents.json',
+				'Missing "digest" in "resources" of bundle description',
 			);
 		}
 	});
 
 	it('read contents.json with malformed resource digest', async () => {
 		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256_2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256_2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+				],
+			},
 		};
 
 		try {
@@ -219,23 +243,25 @@ describe('contents.json validation', () => {
 
 	it('read contents.json with duplicated resource IDs', async () => {
 		const contents = {
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt', 'world.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-				},
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt', 'world.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+					},
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7',
+					},
+				],
+			},
 		};
 
 		try {
@@ -243,7 +269,7 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Duplicate resource IDs found in contents.json: hello',
+				'Duplicate resource IDs found in bundle description: hello',
 			);
 		}
 	});

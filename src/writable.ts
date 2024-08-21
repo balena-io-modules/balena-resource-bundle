@@ -4,7 +4,7 @@ import * as stream from 'node:stream';
 import { Hasher, sha256sum } from './hasher';
 import type {
 	BundleDescription,
-	Contents,
+	Envelope,
 	Resource,
 	Signature,
 	WritableResource,
@@ -44,14 +44,16 @@ export function create<T>(
 	});
 
 	// Add contents.json
-	const contents: Contents<T> = {
-		version: CURRENT_BUNDLE_VERSION,
-		type: description.type,
-		manifest: description.manifest,
-		resources: description.resources.map(describeResource),
+	const envelope: Envelope<T> = {
+		schemaVersion: CURRENT_BUNDLE_VERSION,
+		contents: {
+			type: description.type,
+			manifest: description.manifest,
+			resources: description.resources.map(describeResource),
+		},
 	};
 
-	const contentsJson = toPrettyJSON(contents);
+	const contentsJson = toPrettyJSON(envelope);
 	pack.entry({ name: CONTENTS_JSON }, contentsJson);
 
 	// Add contents.sig

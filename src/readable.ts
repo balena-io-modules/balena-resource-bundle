@@ -2,7 +2,7 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { Hasher, sha256sum } from './hasher';
-import type { BundleDescription, Contents, ReadableResource } from './types';
+import type { BundleDescription, Envelope, ReadableResource } from './types';
 import {
 	CONTENTS_JSON,
 	CONTENTS_SIG,
@@ -207,19 +207,35 @@ export async function open<T>(
 
 	// Parse and validate contents
 
-	const contents: Contents<T> = JSON.parse(contentsStr);
+	const envelope: Envelope<T> | undefined = JSON.parse(contentsStr);
+	if (envelope == null) {
+		throw new Error(`Failed to read ${CONTENTS_JSON}`);
+	}
 
-	const requiredKeys = ['version', 'type', 'manifest', 'resources'];
+	const requiredKeys: Array<keyof Envelope<T>> = ['schemaVersion', 'contents'];
 	for (const key of requiredKeys) {
-		if (!(key in contents)) {
+		if (!(key in envelope)) {
 			throw new Error(`Missing "${key}" in ${CONTENTS_JSON}`);
 		}
 	}
-	if (contents.version !== CURRENT_BUNDLE_VERSION) {
+	if (envelope.schemaVersion !== CURRENT_BUNDLE_VERSION) {
 		throw new Error(
-			`Unsupported bundle version ${contents.version} (expected ${CURRENT_BUNDLE_VERSION})`,
+			`Unsupported bundle version ${envelope.schemaVersion} (expected ${CURRENT_BUNDLE_VERSION})`,
 		);
 	}
+
+	const { contents } = envelope;
+	const requiredContentsKeys: Array<keyof BundleDescription<T>> = [
+		'type',
+		'manifest',
+		'resources',
+	];
+	for (const key of requiredContentsKeys) {
+		if (!(key in contents)) {
+			throw new Error(`Missing "${key}" in bundle description`);
+		}
+	}
+
 	if (contents.type !== type) {
 		throw new Error(
 			`Expected type (${type}) does not match received type (${contents.type})`,
@@ -230,7 +246,9 @@ export async function open<T>(
 		const requiredResourceKeys = ['id', 'size', 'digest'];
 		for (const key of requiredResourceKeys) {
 			if (!(key in resource)) {
-				throw new Error(`Missing "${key}" in "resources" of ${CONTENTS_JSON}`);
+				throw new Error(
+					`Missing "${key}" in "resources" of bundle description`,
+				);
 			}
 		}
 
@@ -253,7 +271,7 @@ export async function open<T>(
 	if (resourceIds.length !== uniqueIds.size) {
 		const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
 		throw new Error(
-			`Duplicate resource IDs found in contents.json: ${duplicateIds}`,
+			`Duplicate resource IDs found in bundle description: ${duplicateIds}`,
 		);
 	}
 
