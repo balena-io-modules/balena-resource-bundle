@@ -23,7 +23,7 @@ export class ErroringStream extends stream.Readable {
 	}
 }
 
-export function createTarBundle(contents) {
+export function createTarBundle(contents: any) {
 	const pack = tar.pack();
 
 	const contentsJson = JSON.stringify(contents);
@@ -39,7 +39,7 @@ export function createTarBundle(contents) {
 	return pack;
 }
 
-export async function createEmptyBundle(contents) {
+export async function createEmptyBundle(contents: any) {
 	const pack = createTarBundle(contents);
 
 	pack.finalize();

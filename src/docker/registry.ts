@@ -3,7 +3,7 @@ import * as stream from 'node:stream';
 import { parse } from 'auth-header';
 
 import type { Image, ImageDescriptor, ImageManifest, ImageBlob } from './types';
-import type { Resource } from '../types';
+import type { WritableResource } from '../types';
 
 export interface BasicAuth {
 	type: 'Basic';
@@ -176,7 +176,7 @@ export async function fetchImage(
 	token?: string,
 ): Promise<{
 	image: Image;
-	blobs: Resource[];
+	blobs: WritableResource[];
 }> {
 	const { images, blobs } = await fetchImages([image], token);
 	if (images.length !== 1) {
@@ -197,7 +197,7 @@ export async function fetchImages(
 	token?: string,
 ): Promise<{
 	images: Image[];
-	blobs: Resource[];
+	blobs: WritableResource[];
 }> {
 	const registries = new Set<string>();
 	images.forEach(({ registry }) => registries.add(registry));
@@ -209,7 +209,7 @@ export async function fetchImages(
 
 	const result = {
 		images: new Array<Image>(),
-		blobs: new Array<Resource>(),
+		blobs: new Array<WritableResource>(),
 	};
 
 	const digests = new Set<string>();

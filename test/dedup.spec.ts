@@ -40,7 +40,7 @@ describe('deduplication tests', () => {
 		for (const resource of readableBundle.resources) {
 			const contents = await bundle.streamToString(resource.data);
 			resources.push(contents);
-			allDescriptors.push(bundle.getResourceDescriptor(resource));
+			allDescriptors.push(bundle.describeResource(resource));
 		}
 
 		expect(manifest).to.eql(['hello 1', 'world 1']);

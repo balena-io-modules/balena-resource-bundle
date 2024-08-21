@@ -1,8 +1,10 @@
 import * as stream from 'node:stream';
 
-import type { Resource, ResourceDescriptor } from './types';
+import type { ReadableResource, Resource, WritableResource } from './types';
 
-export function getResourceDescriptor(resource: Resource): ResourceDescriptor {
+export function describeResource(
+	resource: ReadableResource | WritableResource,
+): Resource {
 	const descriptor = { ...resource };
 	delete (descriptor as any).data;
 	return descriptor;

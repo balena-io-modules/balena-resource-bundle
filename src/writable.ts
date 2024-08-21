@@ -2,7 +2,12 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { Hasher, sha256sum } from './hasher';
-import type { BundleDescription, Contents, Signature } from './types';
+import type {
+	BundleDescription,
+	Contents,
+	Signature,
+	WritableResource,
+} from './types';
 import {
 	CURRENT_BUNDLE_VERSION,
 	CONTENTS_JSON,
@@ -10,7 +15,7 @@ import {
 	RESOURCES_DIR,
 } from './constants';
 import * as signer from './signer';
-import { toPrettyJSON, getResourceDescriptor } from './utils';
+import { toPrettyJSON, describeResource } from './utils';
 
 export interface SignOptions {
 	privateKey: string;
@@ -21,7 +26,7 @@ export interface CreateOptions {
 }
 
 export function create<T>(
-	description: BundleDescription<T>,
+	description: BundleDescription<T, WritableResource>,
 	options: CreateOptions | undefined = {},
 ): stream.Readable {
 	const resourceIds = description.resources.map(({ id }) => id);
@@ -45,7 +50,7 @@ export function create<T>(
 		version: CURRENT_BUNDLE_VERSION,
 		type: description.type,
 		manifest: description.manifest,
-		resources: description.resources.map(getResourceDescriptor),
+		resources: description.resources.map(describeResource),
 	};
 
 	const contentsJson = toPrettyJSON(contents);

@@ -2,7 +2,7 @@ import * as stream from 'node:stream';
 import * as tar from 'tar-stream';
 
 import type { Image } from './types';
-import type { Resource, ResourceDescriptor } from '../types';
+import type { ReadableResource, Resource } from '../types';
 import { toPrettyJSON } from '../utils';
 
 const DOCKER_IMAGE_ROOTFS_COMPRESSED =
@@ -22,14 +22,14 @@ interface DockerArchiveRepositories {
 export class DockerArchive {
 	public readonly images: Image[];
 
-	private _blobs: Resource[];
+	private _blobs: ReadableResource[];
 
 	constructor(images: Image[]) {
 		this.images = images;
 		this._blobs = [];
 	}
 
-	public containsImageBlob(descriptor: ResourceDescriptor): boolean {
+	public containsImageBlob(descriptor: Resource): boolean {
 		return this.images.some((image) => {
 			const { digest } = descriptor;
 			const { manifest } = image;
@@ -40,7 +40,7 @@ export class DockerArchive {
 		});
 	}
 
-	public addImageBlob(blob: Resource) {
+	public addImageBlob(blob: ReadableResource) {
 		this._blobs.push(blob);
 	}
 

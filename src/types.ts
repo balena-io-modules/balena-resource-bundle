@@ -1,36 +1,43 @@
 import type * as stream from 'node:stream';
 
-export interface ResourceDescriptor {
+export type ResourceDescriptor = {
 	id: string;
 	aliases?: string[];
-	size: number;
-	digest: string;
 	type?: string;
 	metadata?: {
 		[key: string]: any;
 	};
-}
+};
 
-export interface Resource extends ResourceDescriptor {
+export type Resource = ResourceDescriptor & {
+	size: number;
+	digest: string;
+};
+
+export type WritableResource = Resource & {
 	data: stream.Readable;
-}
+};
 
-export interface BundleDescription<T> {
+export type ReadableResource = Resource & {
+	data: stream.Readable;
+};
+
+export type BundleDescription<ManifestType, ResourceType = Resource> = {
 	type: string;
-	manifest: T;
-	resources: Resource[];
-}
+	manifest: ManifestType;
+	resources: ResourceType[];
+};
 
 // Internal types
 
-export interface Contents<T> {
+export type Contents<ManifestType> = {
 	version: string;
 	type: string;
-	manifest: T;
-	resources: ResourceDescriptor[];
-}
+	manifest: ManifestType;
+	resources: Resource[];
+};
 
-export interface Signature {
+export type Signature = {
 	digest: string;
 	signature?: string;
-}
+};

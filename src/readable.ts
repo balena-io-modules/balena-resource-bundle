@@ -2,7 +2,7 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { Hasher, sha256sum } from './hasher';
-import type { BundleDescription, Contents, Resource } from './types';
+import type { BundleDescription, Contents, ReadableResource } from './types';
 import {
 	CONTENTS_JSON,
 	CONTENTS_SIG,
@@ -148,7 +148,7 @@ export async function open<T>(
 	input: stream.Readable,
 	type: string,
 	options: OpenOptions | undefined = {},
-): Promise<BundleDescription<T>> {
+): Promise<BundleDescription<T, ReadableResource>> {
 	const extract = tar.extract();
 	const entries = makeEntriesIterator(extract);
 
@@ -241,9 +241,14 @@ export async function open<T>(
 
 	// Extract resources
 
-	const resources: Resource[] = [];
+	const resources = contents.resources.map((descriptor) => {
+		return {
+			...descriptor,
+			data: new stream.PassThrough(),
+		};
+	});
 
-	const resourceIds = contents.resources.map(({ id }) => id);
+	const resourceIds = resources.map(({ id }) => id);
 	const uniqueIds = new Set(resourceIds);
 	if (resourceIds.length !== uniqueIds.size) {
 		const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
@@ -251,14 +256,6 @@ export async function open<T>(
 			`Duplicate resource IDs found in contents.json: ${duplicateIds}`,
 		);
 	}
-	resources.push(
-		...contents.resources.map((descriptor) => {
-			return {
-				...descriptor,
-				data: new stream.PassThrough(),
-			};
-		}),
-	);
 
 	// Register a custom entry handler to properly forward entries into
 	// their respective resource streams without having to await each.
