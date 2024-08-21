@@ -7,31 +7,6 @@ import * as bundle from '../src';
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
-/*
-{
-  "version": "1",
-  "type": "release@4",
-  "manifest": {
-    // the portion of the API state endpoint that
-    // describes a single app.
-  },
-  "resources": [
-    {
-	  "id": "registry2.balena-cloud.com/v2/cafebabe",
-      "type": "tar.gz",
-	  "size": 100,
-      "digest": "sha256:deadbeef"
-    },
-    {
-	  "id": "registry2.balena-cloud.com/v2/caf3babe",
-      "type": "tar.gz",
-      "size": 200,
-      "digest": "sha256:deadbeef"
-    }
-  ]
-}
-*/
-
 describe('common usage', () => {
 	it('create bundle and then read it', async () => {
 		const myBundleStream = bundle.create({

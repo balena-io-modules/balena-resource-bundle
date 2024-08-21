@@ -5,6 +5,7 @@ import { Hasher, sha256sum } from './hasher';
 import type {
 	BundleDescription,
 	Contents,
+	Resource,
 	Signature,
 	WritableResource,
 } from './types';
@@ -36,13 +37,10 @@ export function create<T>(
 		throw new Error(`Found duplicate resource IDs: ${duplicateIds}`);
 	}
 
-	const out = new stream.PassThrough();
-
 	const pack = tar.pack();
-	pack.on('error', (err) => {
-		if (err != null) {
-			out.emit('error', err);
-		}
+	const out = new stream.PassThrough();
+	stream.pipeline(pack, out, () => {
+		// noop
 	});
 
 	// Add contents.json
@@ -66,24 +64,80 @@ export function create<T>(
 	pack.entry({ name: CONTENTS_SIG }, contentsSigJson);
 
 	// Add resources/
-	for (const resource of description.resources) {
-		const name = `${RESOURCES_DIR}/` + sha256sum(resource.id);
-		const entry = pack.entry({ name, size: resource.size });
-		const hasher = new Hasher(resource.digest);
-		stream.pipeline(resource.data, hasher, entry, (err) => {
-			if (err != null) {
-				out.emit('error', err);
-			}
-		});
-	}
-
-	pack.finalize();
-
-	stream.pipeline(pack, out, (err) => {
+	scheduleResources(pack, description.resources.values(), (err) => {
 		if (err != null) {
-			out.emit('error', err);
+			pack.destroy(err);
+		} else {
+			pack.finalize();
 		}
 	});
 
 	return out;
+}
+
+function scheduleResources(
+	pack: tar.Pack,
+	iter: Iterator<WritableResource>,
+	cb: (err?: Error) => void,
+) {
+	const result = iter.next();
+	if (result.done) {
+		cb();
+		return;
+	}
+	const resource = result.value;
+
+	function next(err?: Error) {
+		if (err != null) {
+			cb(err);
+		} else {
+			setImmediate(() => scheduleResources(pack, iter, cb));
+		}
+	}
+
+	if (resource.data instanceof stream.Readable) {
+		packEntry(pack, resource, resource.data, next);
+	} else if (typeof resource.data === 'function') {
+		packPromise(pack, resource, resource.data, next);
+	} else {
+		next(new Error(`Invalid data for resource with ID '${resource.id}'`));
+	}
+}
+
+function packEntry(
+	pack: tar.Pack,
+	resource: Resource,
+	data: stream.Readable,
+	next: (err?: Error) => void,
+) {
+	const name = `${RESOURCES_DIR}/` + sha256sum(resource.id);
+	const hasher = new Hasher(resource.digest);
+	const entry = pack.entry({ name, size: resource.size });
+
+	entry.on('error', next);
+
+	stream.pipeline(data, hasher, entry, (err) => {
+		if (err != null) {
+			next(err);
+		} else {
+			next();
+		}
+	});
+}
+
+function packPromise(
+	pack: tar.Pack,
+	resource: Resource,
+	deferred: (resource: Resource) => Promise<stream.Readable>,
+	next: (err?: Error) => void,
+) {
+	try {
+		Promise.resolve(deferred(resource)).then(
+			(data) => packEntry(pack, resource, data, next),
+			next,
+		);
+	} catch (err) {
+		next(err);
+		return;
+	}
 }

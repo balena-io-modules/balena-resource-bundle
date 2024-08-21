@@ -15,7 +15,7 @@ export type Resource = ResourceDescriptor & {
 };
 
 export type WritableResource = Resource & {
-	data: stream.Readable;
+	data: stream.Readable | ((resource: Resource) => Promise<stream.Readable>);
 };
 
 export type ReadableResource = Resource & {

@@ -84,6 +84,34 @@ strings.join(manifest.separator);
 
 ```
 
+### Providing resource data lazily
+
+You can provide the data for a resource "lazily" by passing an async function that eventually resolves with the actual data stream. The function will be invoked and awaited just before the resource needs to start being streamed into the bundle.
+
+This allows you to delay performing work to fetch resource data (eg. via a network request) until the very last moment. This is particularly useful when opening a stream to fetch resource data early would risk timing out by the time it starts being written into the bundle.
+
+```typescript
+import * as fs from 'node:fs';
+
+async function fetchFileData(resource: Resource): Promise<stream.Readable> {
+  const filepath = await resolveFilepath(resource.id);
+  return fs.createReadStream(filepath);
+}
+
+bundle.create({
+  // ...
+  resources: [
+    // ...
+    {
+      id: 'foo.bin',
+      size: 15345,
+      digest: 'sha256:deadbeef',
+      data: fetchFileData,
+    },
+  ],
+});
+```
+
 
 ## Resource Bundle format
 

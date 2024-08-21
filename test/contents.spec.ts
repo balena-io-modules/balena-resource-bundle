@@ -16,7 +16,6 @@ describe('contents.json validation', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest:
 						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
@@ -40,7 +39,6 @@ describe('contents.json validation', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest:
 						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
@@ -66,7 +64,6 @@ describe('contents.json validation', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest:
 						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
@@ -90,7 +87,6 @@ describe('contents.json validation', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest:
 						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
@@ -204,7 +200,6 @@ describe('contents.json validation', () => {
 			resources: [
 				{
 					id: 'hello',
-					path: 'hello.txt',
 					size: 5,
 					digest:
 						'sha256_2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
