@@ -1,5 +1,5 @@
 export { ImageDescriptor } from './types';
-export { ImageSet, IMAGE_SET_BUNDLE_TYPE } from './image';
+export { ImageSet, ImageSetManifest, IMAGE_SET_BUNDLE_TYPE } from './image';
 export {
 	BasicAuth,
 	BearerAuth,
