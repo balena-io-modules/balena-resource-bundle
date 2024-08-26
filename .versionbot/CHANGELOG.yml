@@ -1,4 +1,82 @@
 - commits:
+    - subject: Add types for working with Docker images
+      hash: 59903bb651f544311fdc55416e2b537f7f2a947b
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Add support for multi-part resources
+      hash: 0c634613d5422bd0e3e4624a13e43739f895caff
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Wrap bundle contents in an “envelope”
+      hash: a4c4c6ebc30d268be739ceb4d364d274e4b7ba89
+      body: >
+        This makes it easier to work with a bundle description.
+
+
+        Also renames the bundle `version` to `schemaVersion` to further
+        dissasociate it from manifest version.
+
+
+        Also updates the resource bundle format as appropriate.
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Add support for lazily providing the data stream for a resource
+      hash: ed2edfbc5a920117781320095a3e010b13a74197
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Create distinct resource types for reading and writing
+      hash: a4f87ddba08dc875f265e186af4bc9fd2f35598c
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Drop `read` in favor of `open` for reading bundles
+      hash: 4a31b8908aa1f73bdf2df1f6efdb0424bda8a04c
+      body: |
+        Also change function signature to take an options dictionary.
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Drop imperative API for creating bundles
+      hash: fa57d3866f39fac55c641e51f2bd87bc1dc5e1c6
+      body: |
+        Favor the declarative API instead.
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Use explicit re-exports for public API
+      hash: 6f8519d1b4b31d9be0d256379bc7d7cd6d8eb8d6
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+  version: 0.6.0
+  title: ""
+  date: 2024-08-26T12:33:35.105Z
+- commits:
     - subject: Embed image manifests in base64 form
       hash: b6e3db9ed0980e63f4f155f08ace9ae44b4e4f26
       body: >
