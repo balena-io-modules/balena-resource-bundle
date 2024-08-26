@@ -29,37 +29,41 @@ interface Image {
 }
 
 export class ImageSet implements BundleConvertible<Image[]> {
-	private images: Image[];
-	private blobs: WritableResource[];
+	private _images: Image[];
+	private _blobs: WritableResource[];
 
-	private manifests: Array<{
+	private _manifests: Array<{
 		Config: string;
 		RepoTags: string[];
 		Layers: string[];
 	}>;
 
-	private repositories: {
+	private _repositories: {
 		[repo: string]: { [ref: string]: string };
 	};
 
 	private constructor(images: Image[], blobs: WritableResource[]) {
-		this.images = images;
-		this.blobs = blobs;
+		this._images = images;
+		this._blobs = blobs;
 
-		this.manifests = [];
-		this.repositories = {};
+		this._manifests = [];
+		this._repositories = {};
 
 		for (const { manifest, descriptor } of images) {
-			this.manifests.push({
+			this._manifests.push({
 				Config: `${manifest.config.digest.split(':')[1]}.json`,
 				RepoTags: [`${descriptor.registry}/${descriptor.repository}:latest`],
 				Layers: manifest.layers.map((layer) => `${layer.digest}.tar.gz`),
 			});
 
-			this.repositories[`${descriptor.registry}/${descriptor.repository}`] = {
+			this._repositories[`${descriptor.registry}/${descriptor.repository}`] = {
 				latest: `${descriptor.reference.split(':')[1]}`,
 			};
 		}
+	}
+
+	public get images(): ImageDescriptor[] {
+		return this._images.map(({ descriptor }) => descriptor);
 	}
 
 	/**
@@ -69,7 +73,7 @@ export class ImageSet implements BundleConvertible<Image[]> {
 	public async pack(): Promise<stream.Readable> {
 		const out = new stream.PassThrough();
 
-		const { blobs } = this;
+		const { _blobs: blobs } = this;
 
 		const pack = tar.pack();
 		pack.on('error', (err) => {
@@ -81,7 +85,7 @@ export class ImageSet implements BundleConvertible<Image[]> {
 		pack.entry(
 			{ name: 'manifest.json' },
 			toPrettyJSON(
-				this.images.map(({ manifest, descriptor }) => ({
+				this._images.map(({ manifest, descriptor }) => ({
 					Config: `${manifest.config.digest.split(':')[1]}.json`,
 					RepoTags: [`${descriptor.registry}/${descriptor.repository}:latest`],
 					Layers: manifest.layers.map((layer) => `${layer.digest}.tar.gz`),
@@ -92,7 +96,7 @@ export class ImageSet implements BundleConvertible<Image[]> {
 			{ name: 'repositories' },
 			toPrettyJSON(
 				Object.fromEntries(
-					this.images.map(({ descriptor }) => [
+					this._images.map(({ descriptor }) => [
 						`${descriptor.registry}/${descriptor.repository}`,
 						{ latest: `${descriptor.reference.split(':')[1]}` },
 					]),
@@ -148,8 +152,8 @@ export class ImageSet implements BundleConvertible<Image[]> {
 	public get contents() {
 		return {
 			type: IMAGE_SET_BUNDLE_TYPE,
-			manifest: this.images,
-			resources: this.blobs,
+			manifest: this._images,
+			resources: this._blobs,
 		};
 	}
 
