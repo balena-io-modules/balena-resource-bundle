@@ -8,7 +8,7 @@ chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 describe('contents.json validation', () => {
-	it('read contents.json with missing schemaVersion', async () => {
+	it('read contents.json with missing version', async () => {
 		const contents = {
 			// schemaVersion: '1',
 			contents: {
@@ -30,12 +30,12 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Missing "schemaVersion" in contents.json',
+				'Missing key in contents.json: "schemaVersion"',
 			);
 		}
 	});
 
-	it('read contents.json with wrong schemaVersion', async () => {
+	it('read contents.json with wrong version', async () => {
 		const contents = {
 			schemaVersion: '2',
 			contents: {
@@ -83,7 +83,9 @@ describe('contents.json validation', () => {
 			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal('Missing "type" in bundle description');
+			expect(error.message).to.equal(
+				'Missing key in bundle description: "type"',
+			);
 		}
 	});
 
@@ -109,7 +111,7 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Missing "manifest" in bundle description',
+				'Missing key in bundle description: "manifest"',
 			);
 		}
 	});
@@ -129,7 +131,7 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Missing "resources" in bundle description',
+				'Missing key in bundle description: "resources"',
 			);
 		}
 	});
@@ -155,9 +157,7 @@ describe('contents.json validation', () => {
 			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal(
-				'Missing "id" in "resources" of bundle description',
-			);
+			expect(error.message).to.equal('Missing key in resource: "id"');
 		}
 	});
 
@@ -182,9 +182,7 @@ describe('contents.json validation', () => {
 			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal(
-				'Missing "size" in "resources" of bundle description',
-			);
+			expect(error.message).to.equal('Missing key in resource: "size"');
 		}
 	});
 
@@ -208,9 +206,7 @@ describe('contents.json validation', () => {
 			await createEmptyBundle(contents);
 			expect.fail('Unreachable');
 		} catch (error) {
-			expect(error.message).to.equal(
-				'Missing "digest" in "resources" of bundle description',
-			);
+			expect(error.message).to.equal('Missing key in resource: "digest"');
 		}
 	});
 
@@ -223,6 +219,7 @@ describe('contents.json validation', () => {
 				resources: [
 					{
 						id: 'hello',
+						path: 'hello.txt',
 						size: 5,
 						digest:
 							'sha256_2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
@@ -269,7 +266,7 @@ describe('contents.json validation', () => {
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
-				'Duplicate resource IDs found in bundle description: hello',
+				'Duplicate resource IDs in bundle description are not allowed (use "aliases" instead): hello',
 			);
 		}
 	});

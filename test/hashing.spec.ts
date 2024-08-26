@@ -63,7 +63,8 @@ describe('hash failures', () => {
 		const readable = await bundle.open(pack, 'foo@1');
 
 		try {
-			for (const resource of readable.resources) {
+			for (const descriptor of readable.resources) {
+				const resource = readable.read(descriptor);
 				await stream.promises.finished(resource.data);
 			}
 			expect.fail('Unreachable');
@@ -75,19 +76,21 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with unknown digest algorithm', async () => {
+		const myBundleStream = bundle.create({
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello.txt',
+					size: 5,
+					digest: 'unk256:aaaaaaaa',
+					data: bundle.stringToStream('hello'),
+				},
+			],
+		});
+
 		try {
-			bundle.create({
-				type: 'foo@1',
-				manifest: ['hello.txt'],
-				resources: [
-					{
-						id: 'hello.txt',
-						size: 5,
-						digest: 'unk256:aaaaaaaa',
-						data: bundle.stringToStream('hello'),
-					},
-				],
-			});
+			await stream.promises.finished(myBundleStream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Digest method not supported');
@@ -95,19 +98,21 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with malformed digest', async () => {
+		const myBundleStream = bundle.create({
+			type: 'foo@1',
+			manifest: ['hello.txt'],
+			resources: [
+				{
+					id: 'hello.txt',
+					size: 5,
+					digest: 'sha256_aaaaaaaaaaaaaaaa',
+					data: bundle.stringToStream('hello'),
+				},
+			],
+		});
+
 		try {
-			bundle.create({
-				type: 'foo@1',
-				manifest: ['hello.txt'],
-				resources: [
-					{
-						id: 'hello.txt',
-						size: 5,
-						digest: 'sha256_aaaaaaaaaaaaaaaa',
-						data: bundle.stringToStream('hello'),
-					},
-				],
-			});
+			await stream.promises.finished(myBundleStream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(

@@ -4,6 +4,7 @@ import * as tar from 'tar-stream';
 import * as bundle from '../src';
 
 import { sha256sum } from '../src/hasher';
+import type { Envelope } from '../src/types';
 
 export class ErroringStream extends stream.Readable {
 	shouldError: boolean = false;
@@ -23,7 +24,7 @@ export class ErroringStream extends stream.Readable {
 	}
 }
 
-export function createTarBundle(contents: any) {
+export function createTarBundle(contents: Envelope<any>) {
 	const pack = tar.pack();
 
 	const contentsJson = JSON.stringify(contents);
@@ -47,4 +48,35 @@ export async function createEmptyBundle(contents: any) {
 	const readable = await bundle.open(pack, 'foo@1');
 
 	return readable;
+}
+
+function dropData(resource: bundle.Resource): bundle.Resource {
+	const copy = {
+		...resource,
+	};
+	delete (copy as any).data;
+	return copy;
+}
+
+export async function gather(
+	contents: bundle.ReadableBundle<any>,
+): Promise<{ data: string[]; resources: bundle.Resource[] }> {
+	const data: string[] = [];
+	const resources: bundle.Resource[] = [];
+
+	for (const descriptor of contents.resources) {
+		if (bundle.isMultipartResource(descriptor)) {
+			const resource = contents.readMultipart(descriptor);
+			const result = await gather(resource);
+			data.push(...result.data);
+			resources.push(...result.resources);
+		} else {
+			const resource = contents.read(descriptor);
+			const str = await bundle.streamToString(resource.data);
+			data.push(str);
+			resources.push(dropData(resource));
+		}
+	}
+
+	return { data, resources };
 }

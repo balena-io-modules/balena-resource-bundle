@@ -2,14 +2,27 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { Hasher, sha256sum } from './hasher';
-import type { BundleDescription, Envelope, ReadableResource } from './types';
+import type {
+	Envelope,
+	MultipartResource,
+	ReadableBundle,
+	ReadableResource,
+	Resource,
+	ResourceDescriptor,
+} from './types';
 import {
 	CONTENTS_JSON,
 	CONTENTS_SIG,
 	CURRENT_BUNDLE_VERSION,
 	RESOURCES_DIR,
 } from './constants';
-import { streamToString } from './utils';
+import {
+	checkProperties,
+	checkUnique,
+	isMultipartResource,
+	mapResources,
+	streamToString,
+} from './utils';
 import * as signer from './signer';
 
 function makeEntriesIterator(extract: tar.Extract) {
@@ -144,11 +157,11 @@ export interface OpenOptions {
 	publicKey?: string;
 }
 
-export async function open<T>(
+export async function open<ManifestType>(
 	input: stream.Readable,
 	type: string,
 	options: OpenOptions | undefined = {},
-): Promise<BundleDescription<T, ReadableResource>> {
+): Promise<ReadableBundle<ManifestType>> {
 	const extract = tar.extract();
 	const entries = makeEntriesIterator(extract);
 
@@ -206,18 +219,19 @@ export async function open<T>(
 	}
 
 	// Parse and validate contents
+	// TODO: use json schema instead
 
-	const envelope: Envelope<T> | undefined = JSON.parse(contentsStr);
+	const envelope: Envelope<ManifestType> | undefined = JSON.parse(contentsStr);
 	if (envelope == null) {
 		throw new Error(`Failed to read ${CONTENTS_JSON}`);
 	}
 
-	const requiredKeys: Array<keyof Envelope<T>> = ['schemaVersion', 'contents'];
-	for (const key of requiredKeys) {
-		if (!(key in envelope)) {
-			throw new Error(`Missing "${key}" in ${CONTENTS_JSON}`);
-		}
-	}
+	checkProperties(
+		envelope,
+		['schemaVersion', 'contents'],
+		`Missing key in ${CONTENTS_JSON}`,
+	);
+
 	if (envelope.schemaVersion !== CURRENT_BUNDLE_VERSION) {
 		throw new Error(
 			`Unsupported bundle version ${envelope.schemaVersion} (expected ${CURRENT_BUNDLE_VERSION})`,
@@ -225,16 +239,7 @@ export async function open<T>(
 	}
 
 	const { contents } = envelope;
-	const requiredContentsKeys: Array<keyof BundleDescription<T>> = [
-		'type',
-		'manifest',
-		'resources',
-	];
-	for (const key of requiredContentsKeys) {
-		if (!(key in contents)) {
-			throw new Error(`Missing "${key}" in bundle description`);
-		}
-	}
+	validateBundleDescription(contents);
 
 	if (contents.type !== type) {
 		throw new Error(
@@ -242,38 +247,14 @@ export async function open<T>(
 		);
 	}
 
-	for (const resource of contents.resources) {
-		const requiredResourceKeys = ['id', 'size', 'digest'];
-		for (const key of requiredResourceKeys) {
-			if (!(key in resource)) {
-				throw new Error(
-					`Missing "${key}" in "resources" of bundle description`,
-				);
-			}
-		}
-
-		if (resource.digest.includes(':') === false) {
-			throw new Error(`Resource with malformed digest ${resource.digest}`);
-		}
-	}
-
 	// Extract resources
 
-	const resources = contents.resources.map((descriptor) => {
-		return {
-			...descriptor,
-			data: new stream.PassThrough(),
-		};
-	});
+	// Attach a PassThroughStream to each resource that we'll use to
+	// pipe data into, as it's being read by `entries`.
+	const resources = makeReadable(contents.resources);
 
-	const resourceIds = resources.map(({ id }) => id);
-	const uniqueIds = new Set(resourceIds);
-	if (resourceIds.length !== uniqueIds.size) {
-		const duplicateIds = resourceIds.filter((id) => !uniqueIds.delete(id));
-		throw new Error(
-			`Duplicate resource IDs found in bundle description: ${duplicateIds}`,
-		);
-	}
+	// Make a flat list of all streamable resources.
+	const flatResources = flattenResources(resources);
 
 	// Register a custom entry handler to properly forward entries into
 	// their respective resource streams without having to await each.
@@ -283,21 +264,29 @@ export async function open<T>(
 
 		const filename = path.split(`${RESOURCES_DIR}/`)[1];
 		if (filename == null) {
-			return next(new Error(`Unexpected file in read bundle ${path}`));
+			return next(new Error(`Unexpected file in bundle ${path}`));
 		}
 
-		const matchingResources = resources.filter(
-			(desc) => sha256sum(desc.id) === filename,
-		);
+		// Resources are expected to be added to the tar stream in the order
+		// they were declared (iteration on multipart resources is depth-first)
+		const resource = flatResources.shift();
+		if (resource == null) {
+			return next(new Error(`Unexpected file in bundle ${path}`));
+		}
 
-		if (matchingResources.length === 0) {
+		const ref = sha256sum(resource.id);
+		if (ref !== filename) {
+			const actual = flatResources.find((r) => sha256sum(r.id) === filename);
+			if (actual != null) {
+				// the resource exists but appeared earlier than expected,
+				// which means the order of resources in the stream is messed up
+				return next(
+					new Error(
+						`Cannot read resources out of order; expected to read '${resource.id}' but read '${actual.id}' instead`,
+					),
+				);
+			}
 			return next(new Error(`Unknown resource ${path}`));
-		}
-
-		const resource = matchingResources[0];
-
-		if (matchingResources.length > 1) {
-			return next(new Error(`Resources with duplicated ID ${resource.id}`));
 		}
 
 		const hasher = new Hasher(resource.digest);
@@ -306,9 +295,150 @@ export async function open<T>(
 		stream.pipeline(data, hasher, dest, next);
 	});
 
-	return {
+	return new _ReadableBundleImpl({
 		type: contents.type,
 		manifest: contents.manifest,
 		resources,
-	};
+	});
+}
+
+type ReadableBundleContents<ManifestType> = MultipartResource<
+	ManifestType,
+	ReadableResource
+>['contents'];
+
+class _ReadableBundleImpl<ManifestType>
+	implements ReadableBundle<ManifestType>
+{
+	private _contents: ReadableBundleContents<ManifestType>;
+
+	constructor(contents: ReadableBundleContents<ManifestType>) {
+		this._contents = contents;
+	}
+
+	get type() {
+		return this._contents.type;
+	}
+
+	get manifest() {
+		return this._contents.manifest;
+	}
+
+	get resources() {
+		// merely upcasting resources as descriptors allows
+		// some flexibility with multipart resources that
+		// isn't otherwise easy to get
+		return this._contents.resources as ResourceDescriptor[];
+	}
+
+	private _getResource(id: string) {
+		const resource = this._contents.resources.find((r) => r.id === id);
+		if (resource == null) {
+			throw new Error(`Resource '${id}' not found in bundle`);
+		}
+		return resource;
+	}
+
+	read(descriptor: ResourceDescriptor): ReadableResource {
+		if ('data' in descriptor) {
+			// see comment in this.resources getter why that is likely to succeed
+			return descriptor as ReadableResource;
+		}
+		const resource = this._getResource(descriptor.id);
+		if (isMultipartResource<any, ReadableResource>(resource)) {
+			throw new Error(`Resource '${descriptor.id} is a multipart resource`);
+		}
+		return resource;
+	}
+
+	readMultipart<T>(descriptor: ResourceDescriptor): ReadableBundle<T> {
+		let resource: ReadableResource | MultipartResource<T, ReadableResource>;
+		if ('contents' in descriptor) {
+			// see comment in this.resources getter why that is likely to succeed
+			resource = descriptor as any;
+		} else {
+			resource = this._getResource(descriptor.id);
+		}
+		if (!isMultipartResource<T, ReadableResource>(resource)) {
+			throw new Error(`Resource '${descriptor.id} is not a multipart resource`);
+		}
+		return new _ReadableBundleImpl(resource.contents);
+	}
+
+	get contents() {
+		return this._contents;
+	}
+}
+
+function flattenResources<T>(
+	resources: ReadableBundleContents<T>['resources'],
+): ReadableResource[] {
+	return resources
+		.map((resource) => {
+			if (isMultipartResource(resource)) {
+				return flattenResources(resource.contents.resources);
+			} else {
+				return [resource];
+			}
+		})
+		.flat();
+}
+
+function makeReadable<T>(
+	resources: Envelope<T>['contents']['resources'],
+): ReadableBundleContents<T>['resources'] {
+	return mapResources(resources, (resource) => ({
+		...resource,
+		data: new stream.PassThrough(),
+	}));
+}
+
+function validateBundleDescription<T>(description: Envelope<T>['contents']) {
+	checkProperties(
+		description,
+		['type', 'manifest', 'resources'],
+		'Missing key in bundle description',
+	);
+
+	function validateResource(rawResource: Resource) {
+		checkProperties(
+			rawResource,
+			['id', 'size', 'digest'],
+			'Missing key in resource',
+		);
+		if (rawResource.digest.includes(':') === false) {
+			throw new Error(`Resource with malformed digest ${rawResource.digest}`);
+		}
+	}
+
+	function validateMultipartResource(rawResource: MultipartResource<T>) {
+		checkProperties(
+			rawResource,
+			['id', 'contents'],
+			'Missing key in multipart resource',
+		);
+		validateBundleDescription(rawResource.contents);
+	}
+
+	for (const resource of description.resources) {
+		if (isMultipartResource(resource)) {
+			validateMultipartResource(resource);
+		} else {
+			validateResource(resource);
+		}
+	}
+
+	function validateResourceIDs(descriptors: ResourceDescriptor[]) {
+		const resourceIds = descriptors.map(({ id }) => id);
+		checkUnique(
+			resourceIds,
+			'Duplicate resource IDs in bundle description are not allowed (use "aliases" instead)',
+		);
+		for (const descriptor of descriptors) {
+			if (isMultipartResource(descriptor)) {
+				validateResourceIDs(descriptor.contents.resources);
+			}
+		}
+	}
+	validateResourceIDs(description.resources);
 }

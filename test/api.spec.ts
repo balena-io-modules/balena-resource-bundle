@@ -11,7 +11,7 @@ describe('api misuse', () => {
 	it('read manifest with incorrect bundle type', async () => {
 		const writableStream = bundle.create({
 			type: 'foo@1',
-			manifest: ['hello.txt'],
+			manifest: null,
 			resources: [
 				{
 					id: 'hello',

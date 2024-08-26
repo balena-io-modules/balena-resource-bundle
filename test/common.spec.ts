@@ -3,6 +3,7 @@ import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 
 import * as bundle from '../src';
+import { gather } from './utils';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -10,8 +11,8 @@ const expect = chai.expect;
 describe('common usage', () => {
 	it('create bundle and then read it', async () => {
 		const myBundleStream = bundle.create({
-			type: 'foo@1',
-			manifest: ['hello.txt', 'world.txt'],
+			type: 'concat@1',
+			manifest: { separator: ' ' },
 			resources: [
 				{
 					id: 'hello.txt',
@@ -30,20 +31,14 @@ describe('common usage', () => {
 			],
 		});
 
-		const readableBundle = await bundle.open(myBundleStream, 'foo@1');
-		const manifest = readableBundle.manifest;
+		const readableBundle = await bundle.open(myBundleStream, 'concat@1');
+		const { manifest } = readableBundle;
 
-		const resources = new Array<string>();
-		const allDescriptors = new Array<bundle.ResourceDescriptor>();
-		for (const resource of readableBundle.resources) {
-			const contents = await bundle.streamToString(resource.data);
-			resources.push(contents);
-			allDescriptors.push(bundle.describeResource(resource));
-		}
+		const { data, resources } = await gather(readableBundle);
 
-		expect(manifest).to.eql(['hello.txt', 'world.txt']);
-		expect(resources).to.eql(['hello', 'world']);
-		expect(allDescriptors).to.eql([
+		expect(manifest).to.eql({ separator: ' ' });
+		expect(data).to.eql(['hello', 'world']);
+		expect(resources).to.eql([
 			{
 				id: 'hello.txt',
 				size: 5,
