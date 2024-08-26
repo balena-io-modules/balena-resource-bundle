@@ -1,4 +1,16 @@
 - commits:
+    - subject: Expose image set manifest
+      hash: f551c355d8d3b098a20faa4f9777ea5f34fc3fc3
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.6.2
+  title: ""
+  date: 2024-08-26T14:29:53.369Z
+- commits:
     - subject: Expose images on ImageSet
       hash: 954b220e2c1b8714b686e4475ae65af24f65bc9d
       body: ""
