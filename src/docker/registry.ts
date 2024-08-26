@@ -3,108 +3,105 @@ import { parse } from 'auth-header';
 
 import type { ImageDescriptor, ImageManifest } from './types';
 
-export interface BasicAuth {
-	type: 'Basic';
+export type BasicAuth = {
+	scheme: 'Basic';
 	username: string;
 	password: string;
-}
+};
 
-export interface BearerAuth {
-	type: 'Bearer';
+export type BearerAuth = {
+	scheme: 'Bearer';
 	subject: string;
 	token: string;
-}
+};
 
 export type Credentials = BasicAuth | BearerAuth;
 
 export function isBearerAuth(creds: Credentials): creds is BearerAuth {
-	return creds.type === 'Bearer' && 'subject' in creds && 'token' in creds;
+	return creds.scheme === 'Bearer' && 'subject' in creds && 'token' in creds;
 }
 
-export interface Authenticate {
+export type Authenticate = {
 	realm: string;
 	service: string;
-}
+	scopes: string[]; // eg. ['<repo1>:pull,push', '<repo2>:pull', ...]
+};
 
-export type Scope = string; // eg. '<repo1>:pull,push' or '<repo2>:pull'
+type AuthenticateResult = {
+	images: ImageDescriptor[];
+	auth?: Authenticate;
+};
 
 /**
- * @param images an array of descriptors that may need authentication when pulled.
+ * Given a list of images, queries the registry for info about how to authenticate.
+ *
+ * All images must be from the same registry.
  */
 export async function discoverAuthenticate(
-	images: ImageDescriptor[],
-): Promise<[Authenticate, Scope[]] | undefined> {
+	imageNamesOrDescriptors: string[] | ImageDescriptor[],
+): Promise<AuthenticateResult> {
+	let images: ImageDescriptor[];
+	if (typeof imageNamesOrDescriptors[0] === 'string') {
+		images = (imageNamesOrDescriptors as string[]).map(parseImageName);
+	} else {
+		images = imageNamesOrDescriptors as any;
+	}
+
 	const registries = new Set<string>();
 	images.forEach(({ registry }) => registries.add(registry));
 	if (registries.size > 1) {
 		throw new Error('All images must be of the same registry');
 	}
 
-	let authResult: Authenticate | undefined;
-	const scopes: Scope[] = [];
-	for (const image of images) {
-		const url = `https://${image.registry}/v2/${image.repository}/manifests/${image.reference}`;
+	let auth: Authenticate | undefined;
 
-		const res = await fetch(url, {
-			headers: getDefaultHeaders(undefined),
-		});
+	await Promise.all(
+		images.map(async ({ registry, repository, reference }) => {
+			const url = `https://${registry}/v2/${repository}/manifests/${reference}`;
 
-		if (res.ok) {
-			continue;
-		}
+			const res = await fetch(url, {
+				method: 'HEAD',
+				headers: getDefaultHeaders(undefined),
+			});
 
-		const authHeader = res.headers.get('www-authenticate');
+			if (res.ok) {
+				return;
+			}
 
-		if (authHeader == null) {
-			throw new Error(
-				`No 'www-authenticate' header present: ${res.status} ${res.statusText}`,
-			);
-		}
+			const authHeader = res.headers.get('www-authenticate');
 
-		const [auth, scope] = parseAuthenticateHeader(authHeader);
+			if (authHeader == null) {
+				throw new Error(
+					`No 'www-authenticate' header present: ${res.status} ${res.statusText}`,
+				);
+			}
+			const {
+				params: { realm, service, scope },
+			} = parse(authHeader);
 
-		if (authResult == null) {
-			authResult = auth;
-		}
+			if (typeof realm !== 'string') {
+				throw new Error(`Authenticate realm not a string ${realm}`);
+			}
+			if (typeof service !== 'string') {
+				throw new Error(`Authenticate service not a string ${service}`);
+			}
+			if (typeof scope !== 'string') {
+				throw new Error(`Authenticate scope not a string ${scope}`);
+			}
 
-		if (
-			authResult.realm !== auth.realm ||
-			authResult.service !== auth.service
-		) {
-			throw new Error('Unexpected authenticate header');
-		}
+			if (auth == null) {
+				auth = { realm, service, scopes: [] };
+			}
 
-		scopes.push(...scope);
-	}
+			if (auth.realm !== realm || auth.service !== service) {
+				throw new Error('Unexpected authenticate header');
+			}
 
-	if (authResult == null) {
-		return;
-	}
+			auth.scopes.push(scope);
+		}),
+	);
 
-	return [authResult, scopes];
-}
-
-/**
- * @param header the www-authenticate header from a 401 registry response.
- */
-export function parseAuthenticateHeader(
-	header: string,
-): [Authenticate, Scope[]] {
-	let {
-		params: { realm, service, scope },
-	} = parse(header);
-
-	if (typeof realm !== 'string') {
-		throw new Error(`Authenticate realm not a string ${realm}`);
-	}
-	if (typeof service !== 'string') {
-		throw new Error(`Authenticate service not a string ${service}`);
-	}
-	if (!Array.isArray(scope)) {
-		scope = [scope];
-	}
-
-	return [{ realm, service }, scope];
+	return { images, auth };
 }
 
 /**
@@ -112,39 +109,35 @@ export function parseAuthenticateHeader(
  */
 export async function authenticate(
 	auth: Authenticate,
-	scopes: Scope[],
 	creds?: Credentials,
 ): Promise<string> {
-	let authType: string | undefined;
-	let subject: string | undefined;
-	let authToken: string | undefined;
+	const url = new URL(auth.realm);
+	const headers: Record<string, string> = {};
 
 	if (creds != null) {
-		if (creds.type === 'Basic') {
-			authType = 'Basic';
-			subject = creds.username;
-			authToken = Buffer.from(`${subject}:${creds.password}`).toString(
-				'base64',
-			);
-		} else {
-			authType = 'Bearer';
-			subject = creds.subject;
-			authToken = creds.token;
+		let subject: string;
+		let authToken: string;
+
+		switch (creds.scheme) {
+			case 'Basic':
+				subject = creds.username;
+				authToken = Buffer.from(`${subject}:${creds.password}`).toString(
+					'base64',
+				);
+				break;
+			case 'Bearer':
+				subject = creds.subject;
+				authToken = creds.token;
+				break;
 		}
-	}
 
-	const url = new URL(auth.realm);
-	if (subject != null) {
 		url.searchParams.append('account', subject);
-	}
-	url.searchParams.append('service', auth.service);
-	for (const scope of scopes) {
-		url.searchParams.append('scope', scope);
+		headers['Authorization'] = `${creds.scheme} ${authToken}`;
 	}
 
-	const headers: { [name: string]: string } = {};
-	if (authType != null && authToken != null) {
-		headers['Authorization'] = `${authType} ${authToken}`;
+	url.searchParams.append('service', auth.service);
+	for (const scope of auth.scopes) {
+		url.searchParams.append('scope', scope);
 	}
 
 	const response = await fetch(url, { headers });
