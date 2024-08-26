@@ -1,16 +1,13 @@
-export { DockerArchive } from './archive';
+export { ImageDescriptor } from './types';
+export { ImageSet, IMAGE_SET_BUNDLE_TYPE } from './image';
 export {
 	BasicAuth,
 	BearerAuth,
 	Credentials,
 	Authenticate,
 	Scope,
+	isBearerAuth,
 	discoverAuthenticate,
 	parseAuthenticateHeader,
 	authenticate,
-	fetchImage,
-	fetchImages,
-	parseImageName,
-	unparseImageName,
 } from './registry';
-export { Image, ImageDescriptor } from './types';

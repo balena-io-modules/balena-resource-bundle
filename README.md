@@ -285,6 +285,75 @@ const dest = fs.createWriteStream('./mybundle.tar'); // or network
 await stream.pipeline(myBundleStream, dest);
 ```
 
+### Working with Docker images
+
+Creating a Docker image archive:
+
+```typescript
+import * as fs from 'node:fs';
+import * as stream from 'node:stream';
+import * as bundle from '@balena/resource-bundle';
+
+const { ImageSet } = bundle.docker;
+
+const imageSet = await ImageSet.fromImages(['ubuntu', 'alpine']);
+const archiveStream = await imageSet.pack();
+await stream.pipeline(archiveStream, fs.createWriteStream('./mybundle.tar'));
+```
+
+Creating an image set bundle:
+
+```typescript
+import * as fs from 'node:fs';
+import * as stream from 'node:stream';
+import * as bundle from '@balena/resource-bundle';
+
+const { ImageSet } = bundle.docker;
+
+const imageSet = await ImageSet.fromImages(['ubuntu', 'alpine']);
+const myBundleStream = bundle.create(imageSet.contents);
+await stream.pipeline(myBundleStream, fs.createWriteStream('./mybundle.tar'));
+```
+
+Adding an image set into a bundle as a multipart resource:
+
+```typescript
+import * as fs from 'node:fs';
+import * as stream from 'node:stream';
+import * as bundle from '@balena/resource-bundle';
+
+const { ImageSet } = bundle.docker;
+
+const imageSet = await ImageSet.fromImages(['ubuntu', 'alpine']);
+
+const myBundleStream = bundle.create({
+  type: 'mybundletype',
+  manifest: { ... }
+  resources: [
+    {
+      id: 'my-image-set',
+      contents: imageSet.contents,
+    },
+  ]
+});
+
+await stream.pipeline(myBundleStream, fs.createWriteStream('./mybundle.tar'));
+```
+
+Reading an image set from a bundle:
+
+```typescript
+import * as bundle from '@balena/resource-bundle';
+
+const myBundle = await bundle.open(myBundleStream, 'mybundletype');
+
+for (const descriptor of myBundle.resources) {
+  const resource = myBundle.readMultipart(descriptor);
+  const imageSet = ImageSet.fromBundle(resource.contents);
+  // ...
+}
+```
+
 ## Resource Bundle format
 
 A resource bundle is a tarball with the following contents:

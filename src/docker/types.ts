@@ -16,9 +16,3 @@ export interface ImageDescriptor {
 	repository: string;
 	reference: string;
 }
-
-export interface Image {
-	descriptor: ImageDescriptor;
-	manifest: ImageManifest;
-	manifestBase64: string;
-}
