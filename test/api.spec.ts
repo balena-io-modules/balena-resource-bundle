@@ -7,11 +7,11 @@ import * as bundle from '../src';
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
-describe('api mishandling', () => {
-	it('read manifest with mismatching bundle type', async () => {
+describe('api misuse', () => {
+	it('read manifest with incorrect bundle type', async () => {
 		const writableStream = bundle.create({
 			type: 'foo@1',
-			manifest: ['hello.txt'],
+			manifest: null,
 			resources: [
 				{
 					id: 'hello',
@@ -24,7 +24,7 @@ describe('api mishandling', () => {
 		});
 
 		try {
-			await bundle.read(writableStream, 'bar@1');
+			await bundle.open(writableStream, 'bar@1');
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(

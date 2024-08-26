@@ -39,49 +39,59 @@ MFIwEAYHKoZIzj0CAQYFK4EEAAMDPgAEH2OuTWjC0f3Qyh4kX2rOLqjLgYOk8Agw
 
 describe('signing tests', () => {
 	it('create a signed bundle and read it with public key', async () => {
-		const writableStream = bundle.create({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-					data: bundle.stringToStream('hello'),
-				},
-			],
-			sign: {
-				privateKey: PRIVATE_KEY,
+		const writableStream = bundle.create(
+			{
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+						data: bundle.stringToStream('hello'),
+					},
+				],
 			},
-		});
+			{
+				sign: {
+					privateKey: PRIVATE_KEY,
+				},
+			},
+		);
 
-		const readable = await bundle.read(writableStream, 'foo@1', PUBLIC_KEY);
+		const readable = await bundle.open(writableStream, 'foo@1', {
+			publicKey: PUBLIC_KEY,
+		});
 		const manifest = readable.manifest;
 
 		expect(manifest).to.eql(['hello.txt']);
 	});
 
 	it('create a signed bundle but read it without a public key', async () => {
-		const writableStream = bundle.create({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-					data: bundle.stringToStream('hello'),
-				},
-			],
-			sign: {
-				privateKey: PRIVATE_KEY,
+		const writableStream = bundle.create(
+			{
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+						data: bundle.stringToStream('hello'),
+					},
+				],
 			},
-		});
+			{
+				sign: {
+					privateKey: PRIVATE_KEY,
+				},
+			},
+		);
 
 		try {
-			await bundle.read(writableStream, 'foo@1');
+			await bundle.open(writableStream, 'foo@1');
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(
@@ -91,25 +101,29 @@ describe('signing tests', () => {
 	});
 
 	it('create a signed bundle but read it with unsupported public key', async () => {
-		const writableStream = bundle.create({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-					data: bundle.stringToStream('hello'),
-				},
-			],
-			sign: {
-				privateKey: PRIVATE_KEY,
+		const writableStream = bundle.create(
+			{
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+						data: bundle.stringToStream('hello'),
+					},
+				],
 			},
-		});
+			{
+				sign: {
+					privateKey: PRIVATE_KEY,
+				},
+			},
+		);
 
 		try {
-			await bundle.read(writableStream, 'foo@1', 'BAD KEY');
+			await bundle.open(writableStream, 'foo@1', { publicKey: 'BAD KEY' });
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.contain('unsupported');
@@ -117,22 +131,26 @@ describe('signing tests', () => {
 	});
 
 	it('create a signed bundle but read it with wrong public key', async () => {
-		const writableStream = bundle.create({
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest:
-						'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-					data: bundle.stringToStream('hello'),
-				},
-			],
-			sign: {
-				privateKey: PRIVATE_KEY,
+		const writableStream = bundle.create(
+			{
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest:
+							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+						data: bundle.stringToStream('hello'),
+					},
+				],
 			},
-		});
+			{
+				sign: {
+					privateKey: PRIVATE_KEY,
+				},
+			},
+		);
 
 		const { publicKey } = generateKeyPairSync('ec', {
 			namedCurve: 'sect239k1',
@@ -147,7 +165,7 @@ describe('signing tests', () => {
 		});
 
 		try {
-			await bundle.read(writableStream, 'foo@1', publicKey);
+			await bundle.open(writableStream, 'foo@1', { publicKey });
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('contents.json has invalid signature');
@@ -156,22 +174,26 @@ describe('signing tests', () => {
 
 	it('try signing bundle with a bad private key', async () => {
 		try {
-			bundle.create({
-				type: 'foo@1',
-				manifest: ['hello.txt'],
-				resources: [
-					{
-						id: 'hello',
-						size: 5,
-						digest:
-							'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-						data: bundle.stringToStream('hello'),
-					},
-				],
-				sign: {
-					privateKey: 'BAD KEY',
+			bundle.create(
+				{
+					type: 'foo@1',
+					manifest: ['hello.txt'],
+					resources: [
+						{
+							id: 'hello',
+							size: 5,
+							digest:
+								'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+							data: bundle.stringToStream('hello'),
+						},
+					],
 				},
-			});
+				{
+					sign: {
+						privateKey: 'BAD KEY',
+					},
+				},
+			);
 
 			expect.fail('Unreachable');
 		} catch (error) {

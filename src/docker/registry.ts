@@ -1,9 +1,7 @@
 import * as stream from 'node:stream';
-
 import { parse } from 'auth-header';
 
-import type { Image, ImageDescriptor, ImageManifest, ImageBlob } from './types';
-import type { Resource } from '../types';
+import type { ImageDescriptor, ImageManifest } from './types';
 
 export interface BasicAuth {
 	type: 'Basic';
@@ -19,17 +17,16 @@ export interface BearerAuth {
 
 export type Credentials = BasicAuth | BearerAuth;
 
+export function isBearerAuth(creds: Credentials): creds is BearerAuth {
+	return creds.type === 'Bearer' && 'subject' in creds && 'token' in creds;
+}
+
 export interface Authenticate {
 	realm: string;
 	service: string;
 }
 
 export type Scope = string; // eg. '<repo1>:pull,push' or '<repo2>:pull'
-
-export const ACCEPTED_MANIFEST_TYPES = [
-	'application/vnd.oci.image.manifest.v1+json',
-	'application/vnd.docker.distribution.manifest.v2+json',
-];
 
 /**
  * @param images an array of descriptors that may need authentication when pulled.
@@ -167,82 +164,7 @@ export async function authenticate(
 	return token;
 }
 
-/**
- * @param image a descriptor for the image to fetch
- * @param token (optional) a JWT that authorizes access to the image
- */
-export async function fetchImage(
-	image: ImageDescriptor,
-	token?: string,
-): Promise<{
-	image: Image;
-	blobs: Resource[];
-}> {
-	const { images, blobs } = await fetchImages([image], token);
-	if (images.length !== 1) {
-		throw new Error('Unreachable');
-	}
-	return { image: images[0], blobs };
-}
-
-/**
- * Like `fetchImage` but this one ensures that layers shared between
- * the given images are only included once.
- *
- * @param image an array of descriptors for the images to fetch
- * @param token (optional) a JWT that authorizes access to the images
- */
-export async function fetchImages(
-	images: ImageDescriptor[],
-	token?: string,
-): Promise<{
-	images: Image[];
-	blobs: Resource[];
-}> {
-	const registries = new Set<string>();
-	images.forEach(({ registry }) => registries.add(registry));
-	if (registries.size > 1) {
-		throw new Error(
-			'Refusing to fetch images from multiple registries using the same token',
-		);
-	}
-
-	const result = {
-		images: new Array<Image>(),
-		blobs: new Array<Resource>(),
-	};
-
-	const digests = new Set<string>();
-
-	await Promise.all(
-		images.map(async (image) => {
-			const [manifest, manifestBase64] = await fetchImageManifest(image, token);
-
-			result.images.push({ descriptor: image, manifest, manifestBase64 });
-
-			const blobs = [manifest.config, ...manifest.layers];
-
-			for (const blob of blobs) {
-				if (digests.has(blob.digest)) {
-					continue;
-				}
-				digests.add(blob.digest);
-
-				const data = await fetchImageBlob(image, blob, token);
-
-				result.blobs.push({
-					id: blob.digest,
-					size: blob.size,
-					digest: blob.digest,
-					type: blob.mediaType,
-					data,
-				});
-			}
-		}),
-	);
-
-	return result;
-}
+// Internal
 
 function getDefaultHeaders(token?: string): { [name: string]: string } {
 	const headers: any = {
@@ -301,7 +223,12 @@ export function unparseImageName(image: ImageDescriptor): string {
 	return `${registry}/${repository}${sep}${reference}`;
 }
 
-async function fetchImageManifest(
+const ACCEPTED_MANIFEST_TYPES = [
+	'application/vnd.oci.image.manifest.v1+json',
+	'application/vnd.docker.distribution.manifest.v2+json',
+];
+
+export async function fetchImageManifest(
 	image: ImageDescriptor,
 	token?: string,
 ): Promise<[ImageManifest, string]> {
@@ -342,12 +269,12 @@ async function fetchImageManifest(
 	return [manifest, manifestBase64];
 }
 
-async function fetchImageBlob(
+export async function fetchImageBlob(
 	image: ImageDescriptor,
-	blob: ImageBlob,
+	digest: string,
 	token?: string,
 ): Promise<stream.Readable> {
-	const url = `https://${image.registry}/v2/${image.repository}/blobs/${blob.digest}`;
+	const url = `https://${image.registry}/v2/${image.repository}/blobs/${digest}`;
 
 	const res = await fetch(url, {
 		headers: getDefaultHeaders(token),
@@ -355,7 +282,7 @@ async function fetchImageBlob(
 
 	if (!res.ok) {
 		throw new Error(
-			`Failed to fetch blob ${blob.digest} from ${unparseImageName(image)}; ${res.status} ${res.statusText}`,
+			`Failed to fetch blob ${digest} from ${unparseImageName(image)}; ${res.status} ${res.statusText}`,
 		);
 	}
 	if (res.body == null) {

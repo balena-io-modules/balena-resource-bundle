@@ -37,16 +37,18 @@ describe('hash failures', () => {
 
 	it('read resource with bad hash', async () => {
 		const pack = createTarBundle({
-			version: '1',
-			type: 'foo@1',
-			manifest: ['hello.txt'],
-			resources: [
-				{
-					id: 'hello',
-					size: 5,
-					digest: 'sha256:deadbeef',
-				},
-			],
+			schemaVersion: '1',
+			contents: {
+				type: 'foo@1',
+				manifest: ['hello.txt'],
+				resources: [
+					{
+						id: 'hello',
+						size: 5,
+						digest: 'sha256:deadbeef',
+					},
+				],
+			},
 		});
 
 		pack.entry(
@@ -58,10 +60,11 @@ describe('hash failures', () => {
 
 		pack.finalize();
 
-		const readable = await bundle.read(pack, 'foo@1');
+		const readable = await bundle.open(pack, 'foo@1');
 
 		try {
-			for (const resource of readable.resources) {
+			for (const descriptor of readable.resources) {
+				const resource = readable.read(descriptor);
 				await stream.promises.finished(resource.data);
 			}
 			expect.fail('Unreachable');
@@ -73,21 +76,21 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with unknown digest algorithm', async () => {
-		const writable = new bundle.WritableBundle({
+		const myBundleStream = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
-		});
-
-		writable.addResource({
-			id: 'hello.txt',
-			size: 5,
-			digest: 'unk256:aaaaaaaa',
-			data: bundle.stringToStream('hello'),
+			resources: [
+				{
+					id: 'hello.txt',
+					size: 5,
+					digest: 'unk256:aaaaaaaa',
+					data: bundle.stringToStream('hello'),
+				},
+			],
 		});
 
 		try {
-			// TODO: this should throw on addResource instead
-			writable.finalize();
+			await stream.promises.finished(myBundleStream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal('Digest method not supported');
@@ -95,21 +98,21 @@ describe('hash failures', () => {
 	});
 
 	it('add resource with malformed digest', async () => {
-		const writable = new bundle.WritableBundle({
+		const myBundleStream = bundle.create({
 			type: 'foo@1',
 			manifest: ['hello.txt'],
-		});
-
-		writable.addResource({
-			id: 'hello.txt',
-			size: 5,
-			digest: 'sha256_aaaaaaaaaaaaaaaa',
-			data: bundle.stringToStream('hello'),
+			resources: [
+				{
+					id: 'hello.txt',
+					size: 5,
+					digest: 'sha256_aaaaaaaaaaaaaaaa',
+					data: bundle.stringToStream('hello'),
+				},
+			],
 		});
 
 		try {
-			// TODO: this should throw on addResource instead
-			writable.finalize();
+			await stream.promises.finished(myBundleStream);
 			expect.fail('Unreachable');
 		} catch (error) {
 			expect(error.message).to.equal(

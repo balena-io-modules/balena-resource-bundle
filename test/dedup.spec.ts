@@ -3,6 +3,7 @@ import * as chaiAsPromised from 'chai-as-promised';
 import { describe } from 'mocha';
 
 import * as bundle from '../src';
+import { gather } from './utils';
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -32,20 +33,14 @@ describe('deduplication tests', () => {
 			],
 		});
 
-		const readableBundle = await bundle.read(myBundleStream, 'foo@1');
+		const readableBundle = await bundle.open(myBundleStream, 'foo@1');
 		const manifest = readableBundle.manifest;
 
-		const resources = new Array<string>();
-		const allDescriptors = new Array<bundle.ResourceDescriptor>();
-		for (const resource of readableBundle.resources) {
-			const contents = await bundle.streamToString(resource.data);
-			resources.push(contents);
-			allDescriptors.push(bundle.getResourceDescriptor(resource));
-		}
+		const { data, resources } = await gather(readableBundle);
 
 		expect(manifest).to.eql(['hello 1', 'world 1']);
-		expect(resources).to.eql(['hello', 'world']);
-		expect(allDescriptors).to.eql([
+		expect(data).to.eql(['hello', 'world']);
+		expect(resources).to.eql([
 			{
 				id: 'hello 1',
 				aliases: ['hello 2'],
