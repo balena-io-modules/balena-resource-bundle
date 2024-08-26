@@ -22,13 +22,15 @@ const DOCKER_IMAGE_ROOTFS_COMPRESSED =
 	'application/vnd.docker.image.rootfs.diff.tar.gzip';
 const DOCKER_IMAGE_CONFIG = 'application/vnd.docker.container.image.v1+json';
 
-interface Image {
+type Image = {
 	descriptor: ImageDescriptor;
 	manifest: ImageManifest;
 	manifestBase64: string;
-}
+};
 
-export class ImageSet implements BundleConvertible<Image[]> {
+export type ImageSetManifest = Image[];
+
+export class ImageSet implements BundleConvertible<ImageSetManifest> {
 	private _images: Image[];
 	private _blobs: WritableResource[];
 
@@ -42,7 +44,7 @@ export class ImageSet implements BundleConvertible<Image[]> {
 		[repo: string]: { [ref: string]: string };
 	};
 
-	private constructor(images: Image[], blobs: WritableResource[]) {
+	private constructor(images: ImageSetManifest, blobs: WritableResource[]) {
 		this._images = images;
 		this._blobs = blobs;
 
@@ -233,7 +235,7 @@ export class ImageSet implements BundleConvertible<Image[]> {
 		return new ImageSet(images, blobs);
 	}
 
-	public static fromBundle(bundle: ReadableBundle<Image[]>) {
+	public static fromBundle(bundle: ReadableBundle<ImageSetManifest>) {
 		if (bundle.type !== IMAGE_SET_BUNDLE_TYPE) {
 			throw new Error(
 				`Not an image set bundle; invalid bundle type: ${bundle.type}`,
