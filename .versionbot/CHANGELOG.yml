@@ -1,4 +1,16 @@
 - commits:
+    - subject: Expose images on ImageSet
+      hash: 954b220e2c1b8714b686e4475ae65af24f65bc9d
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.6.1
+  title: ""
+  date: 2024-08-26T13:37:56.866Z
+- commits:
     - subject: Add types for working with Docker images
       hash: 59903bb651f544311fdc55416e2b537f7f2a947b
       body: ""
