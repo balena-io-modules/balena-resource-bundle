@@ -5,9 +5,7 @@ export {
 	BearerAuth,
 	Credentials,
 	Authenticate,
-	Scope,
 	isBearerAuth,
 	discoverAuthenticate,
-	parseAuthenticateHeader,
 	authenticate,
 } from './registry';
