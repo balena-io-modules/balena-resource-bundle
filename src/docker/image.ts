@@ -30,7 +30,9 @@ type Image = {
 
 export type ImageSetManifest = Image[];
 
-export class ImageSet implements BundleConvertible<ImageSetManifest> {
+export class ImageSet
+	implements BundleConvertible<ImageSetManifest, WritableResource>
+{
 	private _images: Image[];
 	private _blobs: WritableResource[];
 
@@ -72,7 +74,7 @@ export class ImageSet implements BundleConvertible<ImageSetManifest> {
 	 * Creates a Docker image archive and returns a stream that can be piped
 	 * directly to `docker load`.
 	 */
-	public async pack(): Promise<stream.Readable> {
+	public pack(): stream.Readable {
 		const out = new stream.PassThrough();
 
 		const { _blobs: blobs } = this;
