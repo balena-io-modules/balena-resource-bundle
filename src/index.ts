@@ -2,6 +2,7 @@ export { open, OpenOptions } from './readable';
 export { create, CreateOptions, SignOptions } from './writable';
 export {
 	AnyResource,
+	BundleConvertible,
 	BundleDescription,
 	MultipartResource,
 	Resource,
