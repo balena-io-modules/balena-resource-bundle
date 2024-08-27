@@ -1,6 +1,7 @@
 export { open, OpenOptions } from './readable';
 export { create, CreateOptions, SignOptions } from './writable';
 export {
+	AnyResource,
 	BundleDescription,
 	MultipartResource,
 	Resource,
@@ -10,9 +11,11 @@ export {
 	WritableResource,
 } from './types';
 export {
+	TransformCallback,
 	describeResource,
 	isMultipartResource,
 	mapResources,
+	flatMapResources,
 	scheduleResources,
 	stringToStream,
 	streamToString,

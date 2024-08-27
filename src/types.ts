@@ -15,11 +15,30 @@ export interface Resource extends ResourceDescriptor {
 	digest: string;
 }
 
-interface _BundleDescription<ManifestType, ResourceType> {
+type _BundleDescription<
+	ManifestType,
+	ResourceType extends ResourceDescriptor,
+> = {
 	type: string;
 	manifest: ManifestType;
-	resources: Array<ResourceType | MultipartResource<any, ResourceType>>;
+	resources: ResourceType[];
+};
+
+/** Types that can be described as a bundle implement this type to vend
+ * an appropriate description. */
+export interface BundleConvertible<
+	ManifestType,
+	ResourceType extends ResourceDescriptor,
+> {
+	readonly contents: _BundleDescription<ManifestType, ResourceType>;
 }
+
+/** Types that work with multipart resources use this type as a shorthand
+ * to refer to either regular or multipart resources.
+ */
+export type AnyResource<ResourceType extends ResourceDescriptor> =
+	| ResourceType
+	| MultipartResource<any, ResourceType>;
 
 // Types for creating bundles
 
@@ -30,23 +49,19 @@ export interface WritableResource extends Resource {
 
 /** A multipart resource allows embedding complete bundle descriptions
  * into another bundle */
-export interface MultipartResource<ManifestType, ResourceType = Resource>
-	extends ResourceDescriptor {
-	contents: _BundleDescription<ManifestType, ResourceType>;
+export interface MultipartResource<
+	ManifestType,
+	ResourceType extends ResourceDescriptor,
+> extends ResourceDescriptor {
+	contents: _BundleDescription<ManifestType, AnyResource<ResourceType>>;
 }
 
 /** A complete description and all associated data that can be used to
  * create a bundle. */
 export type BundleDescription<ManifestType> = _BundleDescription<
 	ManifestType,
-	WritableResource
+	AnyResource<WritableResource>
 >;
-
-/** Types that can be described as a bundle implement this type to vend
- * the appropriate description. */
-export interface BundleConvertible<ManifestType> {
-	readonly contents: BundleDescription<ManifestType>;
-}
 
 // Types for reading bundles
 
@@ -55,24 +70,27 @@ export interface ReadableResource extends WritableResource {
 	data: stream.Readable;
 }
 
-/** The primary interface for reading bundles and contained multipart resources */
+/**
+ * The primary interface for reading bundles and contained multipart resources.
+ *
+ * Besides using the interface to read bundle contents, a readable bundle can also
+ * be directly written into another bundle via its `ReadableBundle.contents` property.
+ */
 export interface ReadableBundle<ManifestType>
-	extends BundleConvertible<ManifestType> {
+	extends BundleConvertible<ManifestType, AnyResource<ReadableResource>> {
 	readonly type: string;
 	readonly manifest: ManifestType;
 
 	readonly resources: ResourceDescriptor[];
 	read(descriptor: ResourceDescriptor): ReadableResource;
 	readMultipart<T>(descriptor: ResourceDescriptor): ReadableBundle<T>;
-
-	readonly contents: _BundleDescription<ManifestType, ReadableResource>;
 }
 
 // Internal types
 
 export type Envelope<ManifestType> = {
 	schemaVersion: string;
-	contents: _BundleDescription<ManifestType, Resource>;
+	contents: _BundleDescription<ManifestType, AnyResource<Resource>>;
 };
 
 export type Signature = {

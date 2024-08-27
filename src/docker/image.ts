@@ -30,7 +30,9 @@ type Image = {
 
 export type ImageSetManifest = Image[];
 
-export class ImageSet implements BundleConvertible<ImageSetManifest> {
+export class ImageSet
+	implements BundleConvertible<ImageSetManifest, WritableResource>
+{
 	private _images: Image[];
 	private _blobs: WritableResource[];
 
@@ -72,7 +74,7 @@ export class ImageSet implements BundleConvertible<ImageSetManifest> {
 	 * Creates a Docker image archive and returns a stream that can be piped
 	 * directly to `docker load`.
 	 */
-	public async pack(): Promise<stream.Readable> {
+	public pack(): stream.Readable {
 		const out = new stream.PassThrough();
 
 		const { _blobs: blobs } = this;
@@ -159,6 +161,18 @@ export class ImageSet implements BundleConvertible<ImageSetManifest> {
 		};
 	}
 
+	public static fromBundle(bundle: ReadableBundle<ImageSetManifest>) {
+		if (bundle.type !== IMAGE_SET_BUNDLE_TYPE) {
+			throw new Error(
+				`Not an image set bundle; invalid bundle type: ${bundle.type}`,
+			);
+		}
+		return new ImageSet(
+			bundle.manifest,
+			bundle.resources.map((resource) => bundle.read(resource)),
+		);
+	}
+
 	/**
 	 * Pull the given images, ensuring shared layers are only included once.
 	 * If a token is provided, all images must be from the same registry.
@@ -233,18 +247,5 @@ export class ImageSet implements BundleConvertible<ImageSetManifest> {
 		);
 
 		return new ImageSet(images, blobs);
-	}
-
-	public static fromBundle(bundle: ReadableBundle<ImageSetManifest>) {
-		if (bundle.type !== IMAGE_SET_BUNDLE_TYPE) {
-			throw new Error(
-				`Not an image set bundle; invalid bundle type: ${bundle.type}`,
-			);
-		}
-
-		return new ImageSet(
-			bundle.manifest,
-			bundle.resources.map((resource) => bundle.read(resource)),
-		);
 	}
 }
