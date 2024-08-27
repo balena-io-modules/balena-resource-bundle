@@ -1,4 +1,60 @@
 - commits:
+    - subject: Ensure multipart resources always get unique filenames in the bundle
+      hash: 3522f421c8b12c7afa59e0cc558fe8ab0bbe1a71
+      body: >
+        Resource IDs must be unique per “level” — ie. within the “top” level,
+        then within the resources of each multipart resource, and so on.
+
+
+        Previously, adding the same multipart resource more than once would
+        result in the resources of each multipart resource to have the same
+        filename into the bundle.
+
+
+        This wasn’t a problem as all resources were still distinct, but the fact
+        this worked reliably was predicated on implementation
+        details—specifically, the fact that we’d build a flat list of
+        resources-to-read and sequentially matching them to returned tar
+        entries.
+
+
+        This commit assigns distinct filenames to all resources to make things
+        more reliable.
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: Improve types
+      hash: cd8bae51803ed03d6cf87540e0a6a517309b103c
+      body: >
+        Type defaults would prevent type inference and make working with
+        declared types harder. This removes those defaults.
+
+
+        Also adds `AnyResource` type alias as a shorthand for working with both
+        regular and multiprart resources, and opens up `BundleConvertible` to
+        allow declaring whether a type supports multipart resources.
+
+
+        Also moves some code around for readability and organization purposes.
+      footer:
+        Change-type: minor
+        change-type: minor
+      author: Akis Kesoglou
+      nested: []
+    - subject: "`ImageSet.pack` is not async"
+      hash: d9351145297055110e957657cd03cde5a1e5c1a0
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.8.0
+  title: ""
+  date: 2024-08-27T12:17:01.077Z
+- commits:
     - subject: Simplify registry auth helpers
       hash: 293df1d7637a078c771af7b792d0813255435804
       body: ""
