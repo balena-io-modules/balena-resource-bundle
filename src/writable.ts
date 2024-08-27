@@ -80,7 +80,8 @@ export function create<ManifestType>(
 
 			let hasher;
 			try {
-				// may throw synchronously if digest is malform or unsupported algo
+				// may throw synchronously if digest is malformed
+				// or uses an unsupported algo
 				hasher = new Hasher(resource.digest);
 			} catch (err) {
 				data.destroy(err);

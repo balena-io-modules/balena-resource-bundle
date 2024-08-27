@@ -1,13 +1,13 @@
 import * as stream from 'node:stream';
 
 import type {
-	BundleDescription,
+	AnyResource,
 	MultipartResource,
-	Resource,
 	ResourceDescriptor,
+	WritableResource,
 } from './types';
 
-export function isMultipartResource<T = any, ResourceType = Resource>(
+export function isMultipartResource<T, ResourceType extends ResourceDescriptor>(
 	resource: ResourceDescriptor,
 ): resource is MultipartResource<T, ResourceType> {
 	try {
@@ -27,8 +27,8 @@ export function isMultipartResource<T = any, ResourceType = Resource>(
 	}
 }
 
-export function describeResource<T>(
-	resource: Resource | MultipartResource<T, Resource>,
+export function describeResource<ResourceType extends ResourceDescriptor>(
+	resource: AnyResource<ResourceType>,
 ): ResourceDescriptor {
 	const descriptor: ResourceDescriptor = {
 		id: resource.id,
@@ -45,10 +45,13 @@ export function describeResource<T>(
 	return descriptor;
 }
 
-export function mapResources<T, ResourceType>(
-	resources: Array<Resource | MultipartResource<T, Resource>>,
-	callback: (resource: Resource) => ResourceType,
-): Array<ResourceType | MultipartResource<T, ResourceType>> {
+export function mapResources<
+	Result extends ResourceDescriptor,
+	ResourceType extends ResourceDescriptor,
+>(
+	resources: Array<AnyResource<ResourceType>>,
+	callback: (resource: ResourceType) => Result,
+): Array<AnyResource<Result>> {
 	return resources.map((resource) => {
 		if (isMultipartResource(resource)) {
 			return {
@@ -64,8 +67,22 @@ export function mapResources<T, ResourceType>(
 	});
 }
 
-export function toPrettyJSON(obj: any): string {
-	return JSON.stringify(obj, null, 2);
+export function flatMapResources<
+	Result,
+	ResourceType extends ResourceDescriptor,
+>(
+	resources: Array<AnyResource<ResourceType>>,
+	callback: (resource: ResourceType) => Result,
+): Result[] {
+	return resources
+		.map((resource) => {
+			if (isMultipartResource(resource)) {
+				return flatMapResources(resource.contents.resources, callback);
+			} else {
+				return [callback(resource)];
+			}
+		})
+		.flat();
 }
 
 export function stringToStream(str: string): stream.Readable {
@@ -86,7 +103,83 @@ export async function streamToString(source: stream.Readable): Promise<string> {
 	});
 }
 
+export type ResourceHandler<ResourceType> = (
+	resource: ResourceType,
+	data: stream.Readable,
+	next: (err?: Error) => void,
+) => void | Promise<void>;
+
+/**
+ * Given an iterator over an array of resources, invoke a callback for each resource.
+ *
+ * If any resource is a multipart resource, this function will recurse into the resources
+ * of that multipart resource, in a depth-first way.
+ *
+ * If any resource provides data lazily via an async function, it will be invoked and
+ * awaited to retrieve the data stream. If the function throws synchronously or results
+ * in a rejected promise, then the error will be forwarded to `next` automatically and
+ * scheduling will end (invoking the `done` callback with the thrown error).
+ *
+ * If the resource handler is itself an async function, then it must still invoke `next`
+ * as appropriate. Errors thrown from within the handler either synchronously or that
+ * result in a rejected promise will be forwarded to `next` automatically and scheduling
+ * will end (invoking the `done` callback with the thrown error).
+ *
+ * The resource data streams are merely passed around and the resource handler must always
+ * handle errors and destroy the streams as appropriate on failure and communicate the
+ * result via `next`. This function will never register error handlers on data streams.
+ */
+export function scheduleResources<ResourceType extends WritableResource>(
+	iter: Iterator<AnyResource<ResourceType>>,
+	fn: ResourceHandler<ResourceType>,
+	done: (err?: Error) => void,
+) {
+	const result = iter.next();
+	if (result.done) {
+		done();
+		return;
+	}
+	const resource = result.value;
+
+	function next(err?: Error) {
+		if (err != null) {
+			done(err);
+		} else {
+			setImmediate(() => scheduleResources(iter, fn, done));
+		}
+	}
+
+	function invokeCallback(res: ResourceType, data: stream.Readable) {
+		try {
+			Promise.resolve(fn(res, data, next)).catch(next);
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	if (isMultipartResource(resource)) {
+		scheduleResources(resource.contents.resources.values(), fn, next);
+	} else if (typeof resource.data === 'function') {
+		try {
+			Promise.resolve(resource.data(resource)).then(
+				(data) => invokeCallback(resource, data),
+				next,
+			);
+		} catch (err) {
+			next(err);
+		}
+	} else if (resource.data instanceof stream.Readable) {
+		invokeCallback(resource, resource.data);
+	} else {
+		next(new Error(`Invalid data for resource with ID '${resource.id}'`));
+	}
+}
+
 // Internal
+
+export function toPrettyJSON(obj: any): string {
+	return JSON.stringify(obj, null, 2);
+}
 
 export function checkProperties<T extends object>(
 	obj: T,
@@ -105,79 +198,5 @@ export function checkUnique<T>(values: T[], msg: string) {
 	if (values.length !== uniqueValues.size) {
 		const dupes = values.filter((value) => !uniqueValues.delete(value));
 		throw new Error(`${msg}: ${dupes.join(', ')}`);
-	}
-}
-
-export type ResourceHandler = (
-	resource: Resource,
-	data: stream.Readable,
-	next: (err?: Error) => void,
-) => void | Promise<void>;
-
-/**
- * Given an iterator over an array of resources, invoke `packEntry` for each resource.
- *
- * If any resource is a multipart resource, it will recurse into the resources of
- * the multipart resource, in a depth-first way.
- *
- * If any resource provides data lazily, it will ask for data "just in time" the data is
- * needed to be added to the tar stream, and await the returned promise.
- *
- * If the resource handler is itself an async function, then it must still invoke `next`
- * as appropriate.
- *
- * The resource data stream is merely passed around and the resource handler still has
- * to destroy the stream as appropriate on failure.
- */
-export function scheduleResources<T>(
-	iter: Iterator<BundleDescription<T>['resources'][0]>,
-	fn: ResourceHandler,
-	done: (err?: Error) => void,
-) {
-	const result = iter.next();
-	if (result.done) {
-		done();
-		return;
-	}
-	const resource = result.value;
-
-	function next(err?: Error) {
-		if (err != null) {
-			done(err);
-		} else {
-			setImmediate(() => scheduleResources(iter, fn, done));
-		}
-	}
-
-	if (isMultipartResource(resource)) {
-		scheduleResources(resource.contents.resources.values(), fn, next);
-	} else if (typeof resource.data === 'function') {
-		schedulePromise(resource, resource.data, fn, next);
-	} else if (resource.data instanceof stream.Readable) {
-		try {
-			// an async function still needs to call `next` as appropriate
-			// so we don't need to wire up the returned promise here.
-			void fn(resource, resource.data, next);
-		} catch (err) {
-			next(err);
-		}
-	} else {
-		next(new Error(`Invalid data for resource with ID '${resource.id}'`));
-	}
-}
-
-function schedulePromise(
-	resource: Resource,
-	deferred: (resource: Resource) => Promise<stream.Readable>,
-	fn: ResourceHandler,
-	next: (err?: Error) => void,
-) {
-	try {
-		Promise.resolve(deferred(resource)).then(
-			(data) => fn(resource, data, next),
-			next,
-		);
-	} catch (err) {
-		next(err);
 	}
 }

@@ -161,6 +161,18 @@ export class ImageSet
 		};
 	}
 
+	public static fromBundle(bundle: ReadableBundle<ImageSetManifest>) {
+		if (bundle.type !== IMAGE_SET_BUNDLE_TYPE) {
+			throw new Error(
+				`Not an image set bundle; invalid bundle type: ${bundle.type}`,
+			);
+		}
+		return new ImageSet(
+			bundle.manifest,
+			bundle.resources.map((resource) => bundle.read(resource)),
+		);
+	}
+
 	/**
 	 * Pull the given images, ensuring shared layers are only included once.
 	 * If a token is provided, all images must be from the same registry.
@@ -235,18 +247,5 @@ export class ImageSet
 		);
 
 		return new ImageSet(images, blobs);
-	}
-
-	public static fromBundle(bundle: ReadableBundle<ImageSetManifest>) {
-		if (bundle.type !== IMAGE_SET_BUNDLE_TYPE) {
-			throw new Error(
-				`Not an image set bundle; invalid bundle type: ${bundle.type}`,
-			);
-		}
-
-		return new ImageSet(
-			bundle.manifest,
-			bundle.resources.map((resource) => bundle.read(resource)),
-		);
 	}
 }
