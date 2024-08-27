@@ -11,6 +11,7 @@ export {
 	WritableResource,
 } from './types';
 export {
+	TransformCallback,
 	describeResource,
 	isMultipartResource,
 	mapResources,

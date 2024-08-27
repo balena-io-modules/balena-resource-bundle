@@ -19,12 +19,12 @@ import {
 import {
 	checkProperties,
 	checkUnique,
-	flatMapResources,
 	isMultipartResource,
 	mapResources,
 	streamToString,
 } from './utils';
 import * as signer from './signer';
+import { flattenResources } from './writable';
 
 export interface OpenOptions {
 	publicKey?: string;
@@ -130,7 +130,7 @@ export async function open<ManifestType>(
 	}));
 
 	// Make a flat list of all streamable resources.
-	const flatResources = flatMapResources(resources, (resource) => resource);
+	const flatResources = flattenResources(resources);
 
 	// Register a custom entry handler to properly forward entries into
 	// their respective resource streams without having to await each.
@@ -150,9 +150,8 @@ export async function open<ManifestType>(
 			return next(new Error(`Unexpected file in bundle ${path}`));
 		}
 
-		const ref = sha256sum(resource.id);
-		if (ref !== filename) {
-			const actual = flatResources.find((r) => sha256sum(r.id) === filename);
+		if (resource.filename !== filename) {
+			const actual = flatResources.find((r) => r.filename === filename);
 			if (actual != null) {
 				// the resource exists but appeared earlier than expected,
 				// which means the order of resources in the stream is messed up
@@ -162,13 +161,12 @@ export async function open<ManifestType>(
 					),
 				);
 			}
-			return next(new Error(`Unknown resource ${path}`));
+			return next(new Error(`Unexpected resource ${filename}`));
 		}
 
 		const hasher = new Hasher(resource.digest);
-		const dest = resource.data as stream.PassThrough;
 
-		stream.pipeline(data, hasher, dest, next);
+		stream.pipeline(data, hasher, resource.data, next);
 	});
 
 	return new _ReadableBundleImpl({

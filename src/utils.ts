@@ -45,41 +45,71 @@ export function describeResource<ResourceType extends ResourceDescriptor>(
 	return descriptor;
 }
 
-export function mapResources<
-	Result extends ResourceDescriptor,
+export type TransformCallback<
 	ResourceType extends ResourceDescriptor,
+	Result,
+> = (
+	resource: ResourceType,
+	parents: Array<MultipartResource<any, ResourceType>>,
+) => Result;
+
+export function mapResources<
+	ResourceType extends ResourceDescriptor,
+	Result extends ResourceDescriptor,
 >(
 	resources: Array<AnyResource<ResourceType>>,
-	callback: (resource: ResourceType) => Result,
+	callback: TransformCallback<ResourceType, Result>,
+	parents: Array<MultipartResource<any, ResourceType>> = [],
 ): Array<AnyResource<Result>> {
 	return resources.map((resource) => {
 		if (isMultipartResource(resource)) {
+			parents.push(resource);
+
+			const result = mapResources(
+				resource.contents.resources,
+				callback,
+				parents,
+			);
+
+			parents.pop();
+
 			return {
 				...resource,
 				contents: {
 					...resource.contents,
-					resources: mapResources(resource.contents.resources, callback),
+					resources: result,
 				},
 			};
 		} else {
-			return callback(resource);
+			return callback(resource, parents);
 		}
 	});
 }
 
 export function flatMapResources<
-	Result,
 	ResourceType extends ResourceDescriptor,
+	Result,
 >(
 	resources: Array<AnyResource<ResourceType>>,
-	callback: (resource: ResourceType) => Result,
+	callback: TransformCallback<ResourceType, Result>,
+	parents: Array<MultipartResource<any, ResourceType>> = [],
 ): Result[] {
 	return resources
 		.map((resource) => {
 			if (isMultipartResource(resource)) {
-				return flatMapResources(resource.contents.resources, callback);
+				parents.push(resource);
+
+				const result = flatMapResources(
+					resource.contents.resources,
+					callback,
+					parents,
+				);
+
+				parents.pop();
+
+				return result;
 			} else {
-				return [callback(resource)];
+				return [callback(resource, parents)];
 			}
 		})
 		.flat();

@@ -2,7 +2,13 @@ import * as tar from 'tar-stream';
 import * as stream from 'node:stream';
 
 import { Hasher, sha256sum } from './hasher';
-import type { BundleDescription, Envelope, Signature } from './types';
+import type {
+	AnyResource,
+	BundleDescription,
+	Envelope,
+	ResourceDescriptor,
+	Signature,
+} from './types';
 import {
 	CURRENT_BUNDLE_VERSION,
 	CONTENTS_JSON,
@@ -12,6 +18,7 @@ import {
 import * as signer from './signer';
 import {
 	describeResource,
+	flatMapResources,
 	mapResources,
 	scheduleResources,
 	toPrettyJSON,
@@ -70,11 +77,13 @@ export function create<ManifestType>(
 	const contentsSigJson = toPrettyJSON(contentsSig);
 	pack.entry({ name: CONTENTS_SIG }, contentsSigJson);
 
+	const flatResources = flattenResources(description.resources);
+
 	// Add resources/
 	scheduleResources(
-		description.resources.values(),
+		flatResources.values(),
 		(resource, data, next) => {
-			const name = `${RESOURCES_DIR}/` + sha256sum(resource.id);
+			const name = `${RESOURCES_DIR}/` + resource.filename;
 
 			data.on('error', next);
 
@@ -110,4 +119,19 @@ export function create<ManifestType>(
 	);
 
 	return out;
+}
+
+// Internal
+
+export function flattenResources<ResourceType extends ResourceDescriptor>(
+	resources: Array<AnyResource<ResourceType>>,
+) {
+	return flatMapResources(resources, (resource, parents) => {
+		const parts = parents.map(({ id }) => id);
+		parts.push(resource.id);
+		return {
+			...resource,
+			filename: sha256sum(parts.join('::')),
+		};
+	});
 }
