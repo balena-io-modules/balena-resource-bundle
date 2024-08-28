@@ -2,6 +2,7 @@ import * as stream from 'node:stream';
 import { parse } from 'auth-header';
 
 import type { ImageDescriptor, ImageManifest } from './types';
+import { streamToString } from '../utils';
 
 export type BasicAuth = {
 	scheme: 'Basic';
@@ -39,6 +40,7 @@ type AuthenticateResult = {
  */
 export async function discoverAuthenticate(
 	imageNamesOrDescriptors: string[] | ImageDescriptor[],
+	scopesToInclude: Array<'pull' | 'push'> = ['pull'],
 ): Promise<AuthenticateResult> {
 	let images: ImageDescriptor[];
 	if (typeof imageNamesOrDescriptors[0] === 'string') {
@@ -100,6 +102,18 @@ export async function discoverAuthenticate(
 			auth.scopes.push(scope);
 		}),
 	);
+
+	if (auth != null) {
+		auth.scopes = auth.scopes.map((scope) => {
+			const parts = scope.split(':');
+
+			// this assumes scope always ends with `:some-perm`
+			const perms = new Set(parts.pop()!.split(','));
+			scopesToInclude.forEach((s) => perms.add(s));
+
+			return `${parts.join(':')}:${Array.from(perms).join(',')}`;
+		});
+	}
 
 	return { images, auth };
 }
@@ -221,6 +235,8 @@ const ACCEPTED_MANIFEST_TYPES = [
 	'application/vnd.docker.distribution.manifest.v2+json',
 ];
 
+// pull
+
 export async function fetchImageManifest(
 	image: ImageDescriptor,
 	token?: string,
@@ -283,4 +299,186 @@ export async function fetchImageBlob(
 	}
 
 	return stream.Readable.fromWeb(res.body as any);
+}
+
+// push
+
+export async function blobExists(
+	registry: string,
+	repository: string,
+	digest: string,
+	token?: string,
+): Promise<boolean> {
+	const url = `https://${registry}/v2/${repository}/blobs/${digest}`;
+	const response = await fetch(url, {
+		method: 'HEAD',
+		headers: {
+			...getDefaultHeaders(token),
+		},
+	});
+
+	if (response.ok) {
+		return true;
+	} else if (response.status === 404) {
+		return false;
+	} else {
+		throw new Error(
+			`Checking blob existence failed for ${url}: ${response.statusText}`,
+		);
+	}
+}
+
+async function initiateBlobUpload(
+	registry: string,
+	repository: string,
+	token?: string,
+): Promise<string> {
+	const url = `https://${registry}/v2/${repository}/blobs/uploads/`;
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			...getDefaultHeaders(token),
+		},
+	});
+
+	if (!response.ok) {
+		throw new Error(
+			`Initiating blob upload failed for ${url}: ${response.statusText}`,
+		);
+	}
+
+	const uploadLocation = response.headers.get('location');
+
+	if (uploadLocation == null) {
+		throw new Error(
+			`No location header when initiating blob upload for ${url}`,
+		);
+	}
+
+	return uploadLocation;
+}
+
+async function uploadBlobStream(
+	uploadLocation: string,
+	blob: stream.Readable,
+	token?: string,
+): Promise<string> {
+	const response = await fetch(uploadLocation, {
+		method: 'PATCH',
+		headers: {
+			...getDefaultHeaders(token),
+		},
+		body: stream.Readable.toWeb(blob) as any,
+		duplex: 'half',
+	} as RequestInit);
+
+	if (!response.ok) {
+		throw new Error(
+			`Uploading blob stream failed for ${uploadLocation}: ${response.statusText}`,
+		);
+	}
+
+	const completeUploadLocation = response.headers.get('location');
+
+	if (completeUploadLocation == null) {
+		throw new Error(
+			`No location header when uploading blob stream for ${uploadLocation}`,
+		);
+	}
+
+	return completeUploadLocation;
+}
+
+async function completeBlobUpload(
+	completeUploadLocation: string,
+	digest: string,
+	token?: string,
+) {
+	const url = new URL(completeUploadLocation);
+	const params = url.searchParams;
+	params.append('digest', digest);
+
+	const response = await fetch(url, {
+		method: 'PUT',
+		headers: {
+			...getDefaultHeaders(token),
+		},
+	});
+
+	if (!response.ok) {
+		throw new Error(
+			`Completing blob upload failed for ${url}: ${response.statusText}`,
+		);
+	}
+}
+
+export async function pushBlob(
+	registry: string,
+	repository: string,
+	blob: stream.Readable,
+	digest: string,
+	token?: string,
+) {
+	const uploadLocation = await initiateBlobUpload(registry, repository, token);
+
+	const completeUploadLocation = await uploadBlobStream(
+		uploadLocation,
+		blob,
+		token,
+	);
+
+	await completeBlobUpload(completeUploadLocation, digest, token);
+}
+
+export async function mountBlob(
+	registry: string,
+	sourceRepository: string,
+	targetRepository: string,
+	digest: string,
+	token?: string,
+) {
+	const url = `https://${registry}/v2/${targetRepository}/blobs/uploads/?mount=${digest}&from=${sourceRepository}`;
+
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			...getDefaultHeaders(token),
+		},
+	});
+
+	if (!response.ok) {
+		throw new Error(`Mounting blob failed for ${url}: ${response.statusText}`);
+	}
+}
+
+export async function publishManifest(
+	image: ImageDescriptor,
+	mediaType: string,
+	manifest: Buffer,
+	token?: string,
+) {
+	const url = `https://${image.registry}/v2/${image.repository}/manifests/${image.reference}`;
+
+	const response = await fetch(url, {
+		method: 'PUT',
+		headers: {
+			...getDefaultHeaders(token),
+			'Content-Type': mediaType,
+		},
+		body: manifest,
+	});
+
+	if (!response.ok) {
+		if (response.body == null) {
+			throw new Error(
+				`Publish manifest failed for ${url}: ${response.statusText}`,
+			);
+		} else {
+			const body = await streamToString(
+				stream.Readable.fromWeb(response.body as any),
+			);
+
+			throw new Error(`Publish manifest failed for ${url}: ${body}`);
+		}
+	}
 }
