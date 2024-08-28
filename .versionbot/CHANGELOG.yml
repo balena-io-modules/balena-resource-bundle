@@ -1,4 +1,23 @@
 - commits:
+    - subject: Support pushing images to registry
+      hash: fdbd4609e9c456fa9306cee1778d4a4921605f97
+      body: >
+        New `pushImages` API for pushing Docker images contained in a resource
+        bundle to a repository.
+
+
+        Note: the `pushImages` function drains all resources streams.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+      nested: []
+  version: 0.8.2
+  title: ""
+  date: 2024-08-28T14:52:09.839Z
+- commits:
     - subject: Export BundleConvertible type
       hash: 10252d6eefca7c1b31ca09bb632bc1a52c16f137
       body: |
