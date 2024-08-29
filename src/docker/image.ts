@@ -228,6 +228,7 @@ export class ImageSet
 					// image can be referenced using the same exact digest as
 					// the original
 					Buffer.from(image.manifestBase64, 'base64'),
+					token,
 				);
 			}),
 		);
