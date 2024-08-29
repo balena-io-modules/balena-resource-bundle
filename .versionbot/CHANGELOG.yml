@@ -1,4 +1,16 @@
 - commits:
+    - subject: Consistently pass auth token for image push
+      hash: e3729eb4455d502fee066f8fc9feb354bc5bac27
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Akis Kesoglou
+      nested: []
+  version: 0.8.3
+  title: ""
+  date: 2024-08-29T08:23:00.825Z
+- commits:
     - subject: Support pushing images to registry
       hash: fdbd4609e9c456fa9306cee1778d4a4921605f97
       body: >
